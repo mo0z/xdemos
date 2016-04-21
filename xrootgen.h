@@ -7,11 +7,13 @@
 #include <X11/Xlib.h>
 
 #define MAX_CLEANUP 32
+#define MAX_COLOR 0x10000
 
 struct xconn {
 	Display *d;
 	int s;
 	Window w;
+	XWindowAttributes a;
 	Colormap cm;
 	GC gc;
 	struct {
@@ -23,5 +25,9 @@ struct xconn {
 
 int xrootgen_cleanup_add(struct xconn *x,
   void (*func)(struct xconn*, void*), void *data);
+void cleanup_pixmap(struct xconn *x, void *p);
+void cleanup_free(struct xconn *x, void *p);
+unsigned long xrootgen_rgb(struct xconn *x, unsigned short red,
+                           unsigned short green, unsigned short blue);
 
 #endif // XROOTGEN_H

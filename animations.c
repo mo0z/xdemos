@@ -20,12 +20,6 @@ int (*animations[])(struct xconn *x) = {
 	NULL,
 };
 
-void cleanup_pixmap(struct xconn *x, void *p) {
-	XFreePixmap(x->d, *(Pixmap*)p);
-}
-
-static XWindowAttributes a = { 0 };
-
 #define INTS(x, ...) (int[]){ x, __VA_ARG__ }
 #define BITS(a, b) ((a) | ((b) << 1))
 #define LOWER(x, s) ((x) - (s) < 0)
@@ -33,14 +27,12 @@ static XWindowAttributes a = { 0 };
 int reflecting_box(struct xconn *x) {
 	static Pixmap p;
 	static const int size[2] = { 100, 100 }, speed = 10;
-	static int direction = 1, pos[2] = { 50, 50 };
-	if(a.height == 0) {
-		XGetWindowAttributes(x->d, x->w, &a);
-		if(a.height == 0)
-			return -1;
-		p = XCreatePixmap(x->d, x->w, a.width, a.height, a.depth);
+	static int direction = -1, pos[2] = { 50, 50 };
+	if(direction < 0) {
+		p = XCreatePixmap(x->d, x->w, x->a.width, x->a.height, x->a.depth);
 		xrootgen_cleanup_add(x, cleanup_pixmap, (void*)&p);
-		XFillRectangle(x->d, p, x->gc, 0, 0, a.width, a.height);
+		XFillRectangle(x->d, p, x->gc, 0, 0, x->a.width, x->a.height);
+		direction = (direction + 1) * -1;
 	}
 	XSetForeground(x->d, x->gc, XBlackPixel(x->d, x->s));
 	XFillRectangle(x->d, p, x->gc, pos[0], pos[1], size[0], size[1]);
@@ -49,22 +41,24 @@ int reflecting_box(struct xconn *x) {
 		pos[0] += speed;
 		pos[1] -= speed;
 		direction = (int[]){ 0, 3, 1, 2 }[
-			BITS(UPPER(pos[0], speed, a.width, size[0]), LOWER(pos[1], speed))
+			BITS(UPPER(pos[0], speed, x->a.width, size[0]),
+				LOWER(pos[1], speed))
 		];
 		break;
 	case 1:
 		pos[0] += speed;
 		pos[1] += speed;
 		direction = (int[]){ 1, 2, 0, 3 }[
-			BITS(UPPER(pos[0], speed, a.width, size[0]),
-				UPPER(pos[1], speed, a.height, size[1]))
+			BITS(UPPER(pos[0], speed, x->a.width, size[0]),
+				UPPER(pos[1], speed, x->a.height, size[1]))
 		];
 		break;
 	case 2:
 		pos[0] -= speed;
 		pos[1] += speed;
 		direction = (int[]){ 2, 1, 3, 0 }[
-			BITS(LOWER(pos[0], speed), UPPER(pos[1], speed, a.height, size[1]))
+			BITS(LOWER(pos[0], speed),
+				UPPER(pos[1], speed, x->a.height, size[1]))
 		];
 		break;
 	case 3:
@@ -81,11 +75,6 @@ int reflecting_box(struct xconn *x) {
 	XClearWindow(x->d, x->w);
 	XSync(x->d, False);
 	return 0;
-}
-
-void cleanup_free(struct xconn *x, void *p) {
-	free(p);
-	(void)x;
 }
 
 int wolfram(struct xconn *x, int (*rule)(bool, int, char*));
@@ -122,34 +111,30 @@ int wolfram2(struct xconn *x) {
 	return wolfram(x, rule126);
 }
 
-#define MAX_COL 0x10000
+#define LINE_START 20
 int wolfram(struct xconn *x, int (*rule)(bool, int, char*)) {
-	static XColor c;
 	static Pixmap p;
 	static char *last_row, left[3] = { 0 };
-	static int line = 20;
+	static int line = LINE_START;
 	int i, sum = 0;
-	if(a.height == 0) {
-		XGetWindowAttributes(x->d, x->w, &a);
-		if(a.height == 0)
-			return -1;
-		last_row = malloc(a.width);
+	if(line == LINE_START) {
+		last_row = malloc(x->a.width);
 		if(last_row == NULL)
 			return -1;
-		rule(true, a.width, last_row);
+		rule(true, x->a.width, last_row);
 		xrootgen_cleanup_add(x, cleanup_free, last_row);
-		p = XCreatePixmap(x->d, x->w, a.width, a.height, a.depth);
+		p = XCreatePixmap(x->d, x->w, x->a.width, x->a.height, x->a.depth);
 		xrootgen_cleanup_add(x, cleanup_pixmap, (void*)&p);
 		XSetForeground(x->d, x->gc, XBlackPixel(x->d, x->s));
-		XFillRectangle(x->d, p, x->gc, 0, 0, a.width, a.height);
-		c.red = MAX_COL / 2 + rand() % (MAX_COL / 2);
-		c.green = MAX_COL / 2 + rand() % (MAX_COL / 2);
-		c.blue = MAX_COL / 2 + rand() % (MAX_COL / 2);
-		c.flags = DoRed|DoGreen|DoBlue;
-		XAllocColor(x->d, x->cm, &c);
-		XFreeColors(x->d, x->cm, &c.pixel, 1, 0);
-		XSetForeground(x->d, x->gc, c.pixel);
-	} else for(i = 0; i < a.width; i++) {
+		XFillRectangle(x->d, p, x->gc, 0, 0, x->a.width, x->a.height);
+		XSetForeground(x->d, x->gc, xrootgen_rgb(x,
+			MAX_COLOR / 2 + rand() % (MAX_COLOR / 2),
+			MAX_COLOR / 2 + rand() % (MAX_COLOR / 2),
+			MAX_COLOR / 2 + rand() % (MAX_COLOR / 2)));
+		sum = 1;
+		goto first;
+	}
+	for(i = 0; i < x->a.width; i++) {
 		left[2] = left[1];
 		left[1] = left[0];
 		left[0] = last_row[i];
@@ -157,13 +142,14 @@ int wolfram(struct xconn *x, int (*rule)(bool, int, char*)) {
 			(i > 1) * left[2],
 			(i > 0) * left[1],
 			last_row[i],
-			(i < a.width - 1) * last_row[i + (i < a. width - 1)],
-			(i < a.width - 2) * last_row[i + 2 * (i < a. width - 2)],
+			(i < x->a.width - 1) * last_row[i + (i < x->a. width - 1)],
+			(i < x->a.width - 2) * last_row[i + 2 * (i < x->a. width - 2)],
 		});
 	}
-	if(line >= a.height)
+	if(line >= x->a.height)
 		return -1;
-	for(i = 0; i < a.width; i++)
+first:
+	for(i = 0; i < x->a.width; i++)
 		if(last_row[i] != 0) {
 			XDrawPoint(x->d, p, x->gc, i, line);
 			sum++;
