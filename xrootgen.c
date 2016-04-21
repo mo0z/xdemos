@@ -93,10 +93,10 @@ int main(int argc, char *argv[]) {
 	struct xconn x;
 	size_t j;
 	int i;
-	bool win = false;
+	bool root = false;
 	x.cleanup.num = 0;
-	if(argc > 1 && strcmp(argv[1], "-w") == 0) {
-		win = true;
+	if(argc > 1 && strcmp(argv[1], "-r") == 0) {
+		root = true;
 		argc--;
 		argv++;
 	}
@@ -123,7 +123,7 @@ int main(int argc, char *argv[]) {
 	x.cm = XDefaultColormap(x.d, x.s);
 	x.w = RootWindow(x.d, x.s);
 	XGetWindowAttributes(x.d, x.w, &x.a);
-	if(win == true) {
+	if(root == false) {
 		xrootgen_invisible_cursor(&x, &cursor);
 		x.w = XCreateWindow(x.d, x.w, 0, 0,
 		  x.a.width, x.a.height, 0, CopyFromParent, CopyFromParent,
@@ -149,7 +149,7 @@ int main(int argc, char *argv[]) {
 		xrootgen_restnsleep(ts, 50000000);
 	} while(xrootgen_keypressed(x.d) == 0);
 	XSync(x.d, False);
-	if(win == true)
+	if(root == false)
 		XFreeCursor(x.d, cursor);
 	XFreeGC(x.d, x.gc);
 	for(j = 0; j < x.cleanup.num; j++)

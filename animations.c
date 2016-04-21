@@ -111,7 +111,7 @@ int wolfram2(struct xconn *x) {
 	return wolfram(x, rule126);
 }
 
-#define LINE_START 20
+#define LINE_START 0
 int wolfram(struct xconn *x, int (*rule)(bool, int, char*)) {
 	static Pixmap p;
 	static char *last_row, left[3] = { 0 };
