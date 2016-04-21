@@ -6,13 +6,11 @@
 #include <time.h>
 #include <unistd.h>
 #include <X11/Xlib.h>
-#include <X11/Xutil.h>
 
 struct xmeta {
 	Display *d;
 	int s;
 	Window r;
-	XVisualInfo v;
 	Colormap cm;
 	GC gc;
 };
@@ -20,15 +18,11 @@ struct xmeta {
 void xrootgen1_draw1(struct xmeta *x) {
 	XWindowAttributes a;
 	Pixmap p;
-	XColor c = { 0 };
 	XGetWindowAttributes(x->d, x->r, &a);
 	p = XCreatePixmap(x->d, x->r, a.width, a.height, a.depth);
-	XParseColor(x->d, x->cm, "#ffffff", &c);
-	XAllocColor(x->d, x->cm, &c);
-	printf("A: %lX\n", c.pixel);
 	XSetForeground(x->d, x->gc, XBlackPixel(x->d, x->s));
 	XFillRectangle(x->d, p, x->gc, 0, 0, a.width, a.height);
-	XSetForeground(x->d, x->gc, c.pixel);
+	XSetForeground(x->d, x->gc, XWhitePixel(x->d, x->s));
 	XFillRectangle(x->d, p, x->gc, 50, 50, 100, 100);
 	XSetWindowBackgroundPixmap(x->d, x->r, p);
 	XFreePixmap(x->d, p);
@@ -81,8 +75,8 @@ int main(int argc, char *argv[]) {
 	x.s = DefaultScreen(x.d);
 	x.r = RootWindow(x.d, x.s);
 	x.cm = XDefaultColormap(x.d, x.s);
-	x.gc = XCreateGC(x.d, x.r, GCGraphicsExposures, &(XGCValues){ .graphics_exposures = True, });
-	xrootgen_draw2(&x);
+	x.gc = XCreateGC(x.d, x.r, 0, NULL);
+	xrootgen1_draw2(&x);
 	XSync(x.d, False);
 	XFreeGC(x.d, x.gc);
 	XFreeColormap(x.d, x.cm);
