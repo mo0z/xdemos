@@ -87,30 +87,42 @@ void cleanup_free(struct xconn *x, void *p) {
 	(void)x;
 }
 
-int wolfram(struct xconn *x, int (*truth)(int[]));
+int wolfram(struct xconn *x, int (*truth)(int, char*));
 
-int rule24(int base[]) {
-	int accu = (base[0] != 0) + (base[1] != 0) + (base[2] != 0) +
+int rule24(int len, char *base) {
+	int i;
+	if(len > 5) {
+		for(i = 0; i < len; i++)
+			base[i] = rand() & 1;
+		return 0;
+	}
+	i = (base[0] != 0) + (base[1] != 0) + (base[2] != 0) +
 		(base[3] != 0) + (base[4] != 0);
-	return accu == 2 || accu == 4;
+	return i == 2 || i == 4;
 }
 
 int wolfram1(struct xconn *x) {
 	return wolfram(x, rule24);
 }
 
-int rule126(int base[]) {
-	int accu = (base[1] != 0) + (base[2] != 0) + (base[3] != 0);
-	return accu == 1 || accu == 2;
+int rule126(int len, char *base) {
+	int i;
+	if(len > 5) {
+		memset(base, 0, len);
+		base[len / 3] = 1;
+		base[(len / 3) * 2] = 1;
+		return 0;
+	}
+	i = (base[1] != 0) + (base[2] != 0) + (base[3] != 0);
+	return i == 1 || i == 2;
 }
 
 int wolfram2(struct xconn *x) {
 	return wolfram(x, rule126);
 }
 
-#include <stdio.h>
 #define MAX_COL 0x10000
-int wolfram(struct xconn *x, int (*truth)(int[])) {
+int wolfram(struct xconn *x, int (*truth)(int, char*)) {
 	static XColor c;
 	static Pixmap p;
 	static char *last_row, left[3] = { 0 };
@@ -123,13 +135,12 @@ int wolfram(struct xconn *x, int (*truth)(int[])) {
 		last_row = malloc(a.width);
 		if(last_row == NULL)
 			return -1;
+		truth(a.width, last_row);
 		xrootgen_cleanup_add(x, cleanup_free, last_row);
 		p = XCreatePixmap(x->d, x->r, a.width, a.height, a.depth);
 		xrootgen_cleanup_add(x, cleanup_pixmap, (void*)&p);
 		XSetForeground(x->d, x->gc, XBlackPixel(x->d, x->s));
 		XFillRectangle(x->d, p, x->gc, 0, 0, a.width, a.height);
-		for(i = 0; i < a.width; i++)
-			last_row[i] = truth == rule24 ? rand() & 1 : i > 0 && (i % (a.width / 3) == 0);
 		c.red = MAX_COL / 2 + rand() % (MAX_COL / 2);
 		c.green = MAX_COL / 2 + rand() % (MAX_COL / 2);
 		c.blue = MAX_COL / 2 + rand() % (MAX_COL / 2);
@@ -141,7 +152,7 @@ int wolfram(struct xconn *x, int (*truth)(int[])) {
 		left[2] = left[1];
 		left[1] = left[0];
 		left[0] = last_row[i];
-		last_row[i] = truth((int[]){
+		last_row[i] = truth(5, (char[]){
 			(i > 1) * left[2],
 			(i > 0) * left[1],
 			last_row[i],
