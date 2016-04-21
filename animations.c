@@ -155,8 +155,7 @@ first:
 			sum++;
 		}
 	line++;
-	XSetWindowBackgroundPixmap(x->d, x->w, p);
-	XClearWindow(x->d, x->w);
+	xrootgen_setpixmap(x, &p);
 	XSync(x->d, False);
 	return -1 * (sum == 0);
 }

@@ -74,6 +74,23 @@ unsigned long xrootgen_rgb(struct xconn *x, unsigned short red,
 	return c.pixel;
 }
 
+void xrootgen_setpixmap(struct xconn *x, Pixmap *p) {
+	Atom a, b;
+	if(x->w != RootWindow(x->d, x->s)) {
+		XSetWindowBackgroundPixmap(x->d, x->w, *p);
+		XClearWindow(x->d, x->w);
+		return;
+	}
+	a = XInternAtom(x->d, "_XROOTPMAP_ID", False);
+	b = XInternAtom(x->d, "ESETROOT_PMAP_ID", False);
+	if(a == None || b == None)
+		return;
+	XChangeProperty(x->d, x->w, a, XA_PIXMAP, 32, PropModeReplace,
+	  (unsigned char*)p, 1);
+	XChangeProperty(x->d, x->w, b, XA_PIXMAP, 32, PropModeReplace,
+	  (unsigned char*)p, 1);
+}
+
 void xrootgen_invisible_cursor(struct xconn *x, Cursor *c) {
 	static char empty[8] = { 0 };
 	static Pixmap p = { 0 };

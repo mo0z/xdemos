@@ -29,5 +29,6 @@ void cleanup_pixmap(struct xconn *x, void *p);
 void cleanup_free(struct xconn *x, void *p);
 unsigned long xrootgen_rgb(struct xconn *x, unsigned short red,
                            unsigned short green, unsigned short blue);
+void xrootgen_setpixmap(struct xconn *x, Pixmap *p);
 
 #endif // XROOTGEN_H
