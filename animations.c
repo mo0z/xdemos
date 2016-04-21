@@ -35,10 +35,10 @@ int reflecting_box(struct xconn *x) {
 	static const int size[2] = { 100, 100 }, speed = 10;
 	static int direction = 1, pos[2] = { 50, 50 };
 	if(a.height == 0) {
-		XGetWindowAttributes(x->d, x->r, &a);
+		XGetWindowAttributes(x->d, x->w, &a);
 		if(a.height == 0)
 			return -1;
-		p = XCreatePixmap(x->d, x->r, a.width, a.height, a.depth);
+		p = XCreatePixmap(x->d, x->w, a.width, a.height, a.depth);
 		xrootgen_cleanup_add(x, cleanup_pixmap, (void*)&p);
 		XFillRectangle(x->d, p, x->gc, 0, 0, a.width, a.height);
 	}
@@ -77,8 +77,8 @@ int reflecting_box(struct xconn *x) {
 	}
 	XSetForeground(x->d, x->gc, XWhitePixel(x->d, x->s));
 	XFillRectangle(x->d, p, x->gc, pos[0], pos[1], size[0], size[1]);
-	XSetWindowBackgroundPixmap(x->d, x->r, p);
-	XClearWindow(x->d, x->r);
+	XSetWindowBackgroundPixmap(x->d, x->w, p);
+	XClearWindow(x->d, x->w);
 	XSync(x->d, False);
 	return 0;
 }
@@ -130,7 +130,7 @@ int wolfram(struct xconn *x, int (*rule)(bool, int, char*)) {
 	static int line = 20;
 	int i, sum = 0;
 	if(a.height == 0) {
-		XGetWindowAttributes(x->d, x->r, &a);
+		XGetWindowAttributes(x->d, x->w, &a);
 		if(a.height == 0)
 			return -1;
 		last_row = malloc(a.width);
@@ -138,7 +138,7 @@ int wolfram(struct xconn *x, int (*rule)(bool, int, char*)) {
 			return -1;
 		rule(true, a.width, last_row);
 		xrootgen_cleanup_add(x, cleanup_free, last_row);
-		p = XCreatePixmap(x->d, x->r, a.width, a.height, a.depth);
+		p = XCreatePixmap(x->d, x->w, a.width, a.height, a.depth);
 		xrootgen_cleanup_add(x, cleanup_pixmap, (void*)&p);
 		XSetForeground(x->d, x->gc, XBlackPixel(x->d, x->s));
 		XFillRectangle(x->d, p, x->gc, 0, 0, a.width, a.height);
@@ -169,8 +169,8 @@ int wolfram(struct xconn *x, int (*rule)(bool, int, char*)) {
 			sum++;
 		}
 	line++;
-	XSetWindowBackgroundPixmap(x->d, x->r, p);
-	XClearWindow(x->d, x->r);
+	XSetWindowBackgroundPixmap(x->d, x->w, p);
+	XClearWindow(x->d, x->w);
 	XSync(x->d, False);
 	return -1 * (sum == 0);
 }

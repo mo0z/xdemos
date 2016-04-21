@@ -76,9 +76,9 @@ int main(int argc, char *argv[]) {
 		return EXIT_FAILURE;
 	}
 	x.s = DefaultScreen(x.d);
-	x.r = RootWindow(x.d, x.s);
+	x.w = RootWindow(x.d, x.s);
 	x.cm = XDefaultColormap(x.d, x.s);
-	x.gc = XCreateGC(x.d, x.r, 0, NULL);
+	x.gc = XCreateGC(x.d, x.w, 0, NULL);
 	do {
 		if(clock_gettime(CLOCK_MONOTONIC, &ts) < 0 ||
 		  animations[i](&x) < 0)

@@ -11,7 +11,7 @@
 struct xconn {
 	Display *d;
 	int s;
-	Window r;
+	Window w;
 	Colormap cm;
 	GC gc;
 	struct {
