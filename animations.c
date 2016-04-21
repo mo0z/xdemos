@@ -1,6 +1,7 @@
 
 // animations.c
 
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 #include <X11/Xutil.h>
@@ -87,11 +88,11 @@ void cleanup_free(struct xconn *x, void *p) {
 	(void)x;
 }
 
-int wolfram(struct xconn *x, int (*truth)(int, char*));
+int wolfram(struct xconn *x, int (*rule)(bool, int, char*));
 
-int rule24(int len, char *base) {
+int rule24(bool init, int len, char *base) {
 	int i;
-	if(len > 5) {
+	if(init == true) {
 		for(i = 0; i < len; i++)
 			base[i] = rand() & 1;
 		return 0;
@@ -105,9 +106,9 @@ int wolfram1(struct xconn *x) {
 	return wolfram(x, rule24);
 }
 
-int rule126(int len, char *base) {
+int rule126(bool init, int len, char *base) {
 	int i;
-	if(len > 5) {
+	if(init == true) {
 		memset(base, 0, len);
 		base[len / 3] = 1;
 		base[(len / 3) * 2] = 1;
@@ -122,7 +123,7 @@ int wolfram2(struct xconn *x) {
 }
 
 #define MAX_COL 0x10000
-int wolfram(struct xconn *x, int (*truth)(int, char*)) {
+int wolfram(struct xconn *x, int (*rule)(bool, int, char*)) {
 	static XColor c;
 	static Pixmap p;
 	static char *last_row, left[3] = { 0 };
@@ -135,7 +136,7 @@ int wolfram(struct xconn *x, int (*truth)(int, char*)) {
 		last_row = malloc(a.width);
 		if(last_row == NULL)
 			return -1;
-		truth(a.width, last_row);
+		rule(true, a.width, last_row);
 		xrootgen_cleanup_add(x, cleanup_free, last_row);
 		p = XCreatePixmap(x->d, x->r, a.width, a.height, a.depth);
 		xrootgen_cleanup_add(x, cleanup_pixmap, (void*)&p);
@@ -152,7 +153,7 @@ int wolfram(struct xconn *x, int (*truth)(int, char*)) {
 		left[2] = left[1];
 		left[1] = left[0];
 		left[0] = last_row[i];
-		last_row[i] = truth(5, (char[]){
+		last_row[i] = rule(false, 5, (char[]){
 			(i > 1) * left[2],
 			(i > 0) * left[1],
 			last_row[i],
