@@ -112,15 +112,15 @@ int wolfram2(struct xconn *x) {
 #define LINE_START 0
 int wolfram(struct xconn *x, int (*rule)(bool, int, char*)) {
 	static Pixmap p;
-	static char *last_row, left[3] = { 0 };
+	static char *last_row, left[5] = { 0 };
 	static int line = LINE_START;
 	int i, sum = 0;
 	if(line == LINE_START) {
 		last_row = malloc(x->a.width);
 		if(last_row == NULL)
 			return -1;
-		rule(true, x->a.width, last_row);
 		xrootgen_cleanup_add(x, cleanup_free, last_row);
+		rule(true, x->a.width, last_row);
 		p = XCreatePixmap(x->d, x->w, x->a.width, x->a.height, x->a.depth);
 		xrootgen_cleanup_add(x, cleanup_pixmap, (void*)&p);
 		XSetForeground(x->d, x->gc, XBlackPixel(x->d, x->s));
@@ -132,16 +132,19 @@ int wolfram(struct xconn *x, int (*rule)(bool, int, char*)) {
 		sum = 1;
 		goto first;
 	}
+	left[0] = last_row[x->a.width - 1];
+	left[1] = last_row[x->a.width - 2];
+	left[3] = last_row[0];
+	left[4] = last_row[1];
 	for(i = 0; i < x->a.width; i++) {
-		left[2] = left[1];
-		left[1] = left[0];
+		memmove(left + 1, left, 2 * sizeof *left);
 		left[0] = last_row[i];
 		last_row[i] = rule(false, 5, (char[]){
-			(i > 1) * left[2],
-			(i > 0) * left[1],
+			left[2],
+			left[1],
 			last_row[i],
-			(i < x->a.width - 1) * last_row[i + (i < x->a. width - 1)],
-			(i < x->a.width - 2) * last_row[i + 2 * (i < x->a. width - 2)],
+			i + 1 >= x->a.width ? left[4 + i - x->a.width] : last_row[i + 1],
+			i + 2 >= x->a.width ? left[5 + i - x->a.width] : last_row[i + 2],
 		});
 	}
 	if(line >= x->a.height)
