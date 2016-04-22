@@ -76,11 +76,10 @@ unsigned long xrootgen_rgb(struct xconn *x, unsigned short red,
 
 void xrootgen_setpixmap(struct xconn *x, Pixmap *p) {
 	Atom a, b;
-	if(x->w != RootWindow(x->d, x->s)) {
-		XSetWindowBackgroundPixmap(x->d, x->w, *p);
-		XClearWindow(x->d, x->w);
+	XSetWindowBackgroundPixmap(x->d, x->w, *p);
+	XClearWindow(x->d, x->w);
+	if(x->w != RootWindow(x->d, x->s))
 		return;
-	}
 	a = XInternAtom(x->d, "_XROOTPMAP_ID", False);
 	b = XInternAtom(x->d, "ESETROOT_PMAP_ID", False);
 	if(a == None || b == None)
