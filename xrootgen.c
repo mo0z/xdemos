@@ -78,8 +78,10 @@ void xrootgen_setpixmap(struct xconn *x, Pixmap *p) {
 	Atom a, b;
 	XSetWindowBackgroundPixmap(x->d, x->w, *p);
 	XClearWindow(x->d, x->w);
-	if(x->w != RootWindow(x->d, x->s))
+	if(x->w != RootWindow(x->d, x->s)) {
+		XSync(x->d, False);
 		return;
+	}
 	a = XInternAtom(x->d, "_XROOTPMAP_ID", False);
 	b = XInternAtom(x->d, "ESETROOT_PMAP_ID", False);
 	if(a == None || b == None)
@@ -88,6 +90,7 @@ void xrootgen_setpixmap(struct xconn *x, Pixmap *p) {
 	  (unsigned char*)p, 1);
 	XChangeProperty(x->d, x->w, b, XA_PIXMAP, 32, PropModeReplace,
 	  (unsigned char*)p, 1);
+	XSync(x->d, False);
 }
 
 void xrootgen_invisible_cursor(struct xconn *x, Cursor *c) {

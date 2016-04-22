@@ -71,9 +71,7 @@ int reflecting_box(struct xconn *x) {
 	}
 	XSetForeground(x->d, x->gc, XWhitePixel(x->d, x->s));
 	XFillRectangle(x->d, p, x->gc, pos[0], pos[1], size[0], size[1]);
-	XSetWindowBackgroundPixmap(x->d, x->w, p);
-	XClearWindow(x->d, x->w);
-	XSync(x->d, False);
+	xrootgen_setpixmap(x, &p);
 	return 0;
 }
 
@@ -156,6 +154,5 @@ first:
 		}
 	line++;
 	xrootgen_setpixmap(x, &p);
-	XSync(x->d, False);
 	return -1 * (sum == 0);
 }
