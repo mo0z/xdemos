@@ -14,4 +14,8 @@ static inline size_t animations_count(int (*animations[])(struct xconn*)) {
 	return i;
 }
 
+struct animations_data {
+	int dir;
+};
+
 #endif // ANIMATIONS_H

@@ -103,16 +103,38 @@ void xrootgen_invisible_cursor(struct xconn *x, Cursor *c) {
 
 int main(int argc, char *argv[]) {
 	Cursor cursor;
+	struct animations_data data;
 	struct timespec ts;
 	struct xconn x;
 	size_t j;
 	int i;
 	bool root = false;
 	x.cleanup.num = 0;
-	if(argc > 1 && strcmp(argv[1], "-r") == 0) {
-		root = true;
-		argc--;
-		argv++;
+	data.dir = -1;
+	x.data = &data;
+	while(argc > 2) {
+		if(strcmp(argv[1], "-r") == 0) {
+			root = true;
+			argc--;
+			argv++;
+		} else if(strcmp(argv[1], "-up") == 0) {
+			data.dir = 0;
+			argc--;
+			argv++;
+		} else if(strcmp(argv[1], "-down") == 0) {
+			data.dir = 1;
+			argc--;
+			argv++;
+		} else if(strcmp(argv[1], "-left") == 0) {
+			data.dir = 2;
+			argc--;
+			argv++;
+		} else if(strcmp(argv[1], "-right") == 0) {
+			data.dir = 3;
+			argc--;
+			argv++;
+		} else
+			break;
 	}
 	if(argc > 2) {
 		fprintf(stderr, "Error: invalid arguments.\n");

@@ -109,18 +109,19 @@ int wolfram2(struct xconn *x) {
 	return wolfram(x, rule126);
 }
 
-#define LINE_START 0
 int wolfram(struct xconn *x, int (*rule)(bool, int, char*)) {
 	static Pixmap p;
 	static char *last_row, left[5] = { 0 };
-	static int line = LINE_START;
+	static int line = 0, l;
+	struct animations_data *data = x->data;
 	int i, sum = 0;
-	if(line == LINE_START) {
-		last_row = malloc(x->a.width);
+	if(line == 0) {
+		l = (data->dir & 2) == 0 ? x->a.width : x->a.height;
+		last_row = malloc(l);
 		if(last_row == NULL)
 			return -1;
 		xrootgen_cleanup_add(x, cleanup_free, last_row);
-		rule(true, x->a.width, last_row);
+		rule(true, l, last_row);
 		p = XCreatePixmap(x->d, x->w, x->a.width, x->a.height, x->a.depth);
 		xrootgen_cleanup_add(x, cleanup_pixmap, (void*)&p);
 		XSetForeground(x->d, x->gc, XBlackPixel(x->d, x->s));
@@ -129,32 +130,45 @@ int wolfram(struct xconn *x, int (*rule)(bool, int, char*)) {
 			MAX_COLOR / 2 + rand() % (MAX_COLOR / 2),
 			MAX_COLOR / 2 + rand() % (MAX_COLOR / 2),
 			MAX_COLOR / 2 + rand() % (MAX_COLOR / 2)));
-		sum = 1;
 		goto first;
 	}
-	left[0] = last_row[x->a.width - 1];
-	left[1] = last_row[x->a.width - 2];
+	left[0] = last_row[l - 1];
+	left[1] = last_row[l - 2];
 	left[3] = last_row[0];
 	left[4] = last_row[1];
-	for(i = 0; i < x->a.width; i++) {
+	for(i = 0; i < l; i++) {
 		memmove(left + 1, left, 2 * sizeof *left);
 		left[0] = last_row[i];
 		last_row[i] = rule(false, 5, (char[]){
 			left[2],
 			left[1],
 			last_row[i],
-			i + 1 >= x->a.width ? left[4 + i - x->a.width] : last_row[i + 1],
-			i + 2 >= x->a.width ? left[5 + i - x->a.width] : last_row[i + 2],
+			i + 1 >= l ? left[4 + i - l] : last_row[i + 1],
+			i + 2 >= l ? left[5 + i - l] : last_row[i + 2],
 		});
 	}
-	if(line >= x->a.height)
+	if((data->dir & 2) == 0 ? (line >= x->a.height) : (line >= x->a.width))
 		return -1;
 first:
-	for(i = 0; i < x->a.width; i++)
-		if(last_row[i] != 0) {
+	for(i = 0; i < l; i++) {
+		switch((last_row[i] == 0) * 4 + data->dir) {
+		case 0:
+			XDrawPoint(x->d, p, x->gc, i, x->a.height - 1 - line);
+			break;
+		case 1:
 			XDrawPoint(x->d, p, x->gc, i, line);
-			sum++;
+			break;
+		case 2:
+			XDrawPoint(x->d, p, x->gc, x->a.width - 1 - line, i);
+			break;
+		case 3:
+			XDrawPoint(x->d, p, x->gc, line, i);
+			break;
+		default:
+			continue;
 		}
+		sum++;
+	}
 	line++;
 	xrootgen_setpixmap(x, &p);
 	return -1 * (sum == 0);
