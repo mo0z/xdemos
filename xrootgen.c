@@ -68,6 +68,7 @@ unsigned long xrootgen_rgb(struct xconn *x, unsigned short red,
 		.red = red,
 		.green = green,
 		.blue = blue,
+		.flags = DoRed|DoGreen|DoBlue,
 	};
 	XAllocColor(x->d, x->cm, &c);
 	XFreeColors(x->d, x->cm, &c.pixel, 1, 0);

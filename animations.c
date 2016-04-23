@@ -97,8 +97,8 @@ int rule126(bool init, int len, char *base) {
 	int i;
 	if(init == true) {
 		memset(base, 0, len);
-		base[len / 3] = 1;
-		base[(len / 3) * 2] = 1;
+		base[len / 4] = 1;
+		base[(len / 4) * 3] = 1;
 		return 0;
 	}
 	i = (base[1] != 0) + (base[2] != 0) + (base[3] != 0);
