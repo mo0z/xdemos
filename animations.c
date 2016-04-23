@@ -42,7 +42,7 @@ int reflecting_box(struct xconn *x) {
 		pos[1] -= speed;
 		direction = (int[]){ 0, 3, 1, 2 }[
 			BITS(UPPER(pos[0], speed, x->a.width, size[0]),
-				LOWER(pos[1], speed))
+			     LOWER(pos[1], speed))
 		];
 		break;
 	case 1:
@@ -50,7 +50,7 @@ int reflecting_box(struct xconn *x) {
 		pos[1] += speed;
 		direction = (int[]){ 1, 2, 0, 3 }[
 			BITS(UPPER(pos[0], speed, x->a.width, size[0]),
-				UPPER(pos[1], speed, x->a.height, size[1]))
+			     UPPER(pos[1], speed, x->a.height, size[1]))
 		];
 		break;
 	case 2:
@@ -58,7 +58,7 @@ int reflecting_box(struct xconn *x) {
 		pos[1] += speed;
 		direction = (int[]){ 2, 1, 3, 0 }[
 			BITS(LOWER(pos[0], speed),
-				UPPER(pos[1], speed, x->a.height, size[1]))
+			     UPPER(pos[1], speed, x->a.height, size[1]))
 		];
 		break;
 	case 3:

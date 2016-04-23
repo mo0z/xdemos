@@ -94,16 +94,11 @@ void xrootgen_setpixmap(struct xconn *x, Pixmap *p) {
 }
 
 void xrootgen_invisible_cursor(struct xconn *x, Cursor *c) {
-	static char empty[8] = { 0 };
-	static Pixmap p = { 0 };
-	static bool already = false;
-	XColor b = { 0 };
-	if(already == false) {
-		p = XCreateBitmapFromData(x->d, x->w, empty, 8, 8);
-		already = true;
-	}
-	*c = XCreatePixmapCursor(x->d, p, None, &b, &b, 0, 0);
-	xrootgen_cleanup_add(x, cleanup_pixmap, &p);
+	Pixmap p;
+	XColor d = { .pixel = XBlackPixel(x->d, x->s) };
+	p = XCreatePixmap(x->d, x->w, 1, 1, 1);
+	*c = XCreatePixmapCursor(x->d, p, p, &d, &d, 0, 0);
+	XFreePixmap(x->d, p);
 }
 
 int main(int argc, char *argv[]) {
@@ -168,11 +163,13 @@ int main(int argc, char *argv[]) {
 		xrootgen_restnsleep(ts, 50000000);
 	} while(xrootgen_keypressed(x.d) == 0);
 	XSync(x.d, False);
-	if(root == false)
-		XFreeCursor(x.d, cursor);
-	XFreeGC(x.d, x.gc);
 	for(j = 0; j < x.cleanup.num; j++)
 		x.cleanup.func[j](&x, x.cleanup.data[j]);
+	XFreeGC(x.d, x.gc);
+	if(root == false) {
+		XFreeCursor(x.d, cursor);
+		XDestroyWindow(x.d, x.w);
+	}
 	XCloseDisplay(x.d);
 	return EXIT_SUCCESS;
 }
