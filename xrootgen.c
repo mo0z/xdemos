@@ -108,11 +108,10 @@ int main(int argc, char *argv[]) {
 	struct timespec ts;
 	struct xconn x;
 	size_t j;
-	int i;
+	int i = 0;
 	bool root = false;
 	x.cleanup.num = 0;
 	data.dir = -1;
-	x.data = &data;
 	while(argc > 2) {
 		if(strcmp(argv[1], "-r") == 0) {
 			root = true;
@@ -137,6 +136,7 @@ int main(int argc, char *argv[]) {
 		} else
 			break;
 	}
+	srand(time(NULL));
 	if(argc > 2) {
 		fprintf(stderr, "Error: invalid arguments.\n");
 		return EXIT_FAILURE;
@@ -147,13 +147,11 @@ int main(int argc, char *argv[]) {
 			  argv[1]);
 			argc = 1;
 		}
-	}
-	srand(time(NULL));
-	if(argc == 1)
+	} else
 		i = rand() % animations_count(animations);
 	x.d = XOpenDisplay(NULL);
 	if(x.d == NULL) {
-		fprintf(stderr, "Error: failed opening Display.\n");
+		fprintf(stderr, "Error: failed to open Display.\n");
 		return EXIT_FAILURE;
 	}
 	x.s = DefaultScreen(x.d);
@@ -181,7 +179,7 @@ int main(int argc, char *argv[]) {
 		if(clock_gettime(CLOCK_MONOTONIC, &ts) < 0)
 			break;
 		XGetWindowAttributes(x.d, x.w, &x.a);
-		if(animations[i](&x) < 0)
+		if(animations[i](&x, (void*)&data) < 0)
 			break;
 		xrootgen_restnsleep(ts, 50000000);
 	} while(xrootgen_keypressed(x.d) == 0);

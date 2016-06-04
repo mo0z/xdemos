@@ -16,7 +16,6 @@ struct xconn {
 	XWindowAttributes a;
 	Colormap cm;
 	GC gc;
-	void *data;
 	struct {
 		size_t num;
 		void (*func[MAX_CLEANUP])(struct xconn*, void*);

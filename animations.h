@@ -6,9 +6,10 @@
 
 #include "xrootgen.h"
 
-extern int (*animations[])(struct xconn *x);
+extern int (*animations[])(struct xconn*, void*);
 
-static inline size_t animations_count(int (*animations[])(struct xconn*)) {
+static inline size_t animations_count(
+  int (*animations[])(struct xconn*, void*)) {
 	size_t i;
 	for(i = 0; animations[i] != NULL; i++);
 	return i;

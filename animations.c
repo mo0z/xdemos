@@ -9,11 +9,11 @@
 #include "animations.h"
 
 
-int reflecting_box(struct xconn *x);
-int wolfram1(struct xconn *x);
-int wolfram2(struct xconn *x);
+int reflecting_box(struct xconn *x, void *d);
+int wolfram1(struct xconn *x, void *d);
+int wolfram2(struct xconn *x, void *d);
 
-int (*animations[])(struct xconn *x) = {
+int (*animations[])(struct xconn*, void*) = {
 	reflecting_box,
 	wolfram1,
 	wolfram2,
@@ -24,7 +24,7 @@ int (*animations[])(struct xconn *x) = {
 #define BITS(a, b) ((a) | ((b) << 1))
 #define LOWER(x, s) ((x) - (s) < 0)
 #define UPPER(x, s, m, d) ((x) + (s) >= (m) - (d))
-int reflecting_box(struct xconn *x) {
+int reflecting_box(struct xconn *x, void *data) {
 	static Pixmap p;
 	static const int size[2] = { 100, 100 }, speed = 10;
 	static int direction = -1, pos[2] = { 50, 50 };
@@ -73,9 +73,11 @@ int reflecting_box(struct xconn *x) {
 	XFillRectangle(x->d, p, x->gc, pos[0], pos[1], size[0], size[1]);
 	xrootgen_setpixmap(x, &p);
 	return 0;
+	(void)data;
 }
 
-int wolfram(struct xconn *x, int (*rule)(bool, int, char*));
+int wolfram(struct xconn *x, struct animations_data *data,
+            int (*rule)(bool, int, char*));
 
 int rule24(bool init, int len, char *base) {
 	int i;
@@ -89,8 +91,8 @@ int rule24(bool init, int len, char *base) {
 	return i == 2 || i == 4;
 }
 
-int wolfram1(struct xconn *x) {
-	return wolfram(x, rule24);
+int wolfram1(struct xconn *x, void *data) {
+	return wolfram(x, data, rule24);
 }
 
 int rule126(bool init, int len, char *base) {
@@ -105,15 +107,15 @@ int rule126(bool init, int len, char *base) {
 	return i == 1 || i == 2;
 }
 
-int wolfram2(struct xconn *x) {
-	return wolfram(x, rule126);
+int wolfram2(struct xconn *x, void *data) {
+	return wolfram(x, data, rule126);
 }
 
-int wolfram(struct xconn *x, int (*rule)(bool, int, char*)) {
+int wolfram(struct xconn *x, struct animations_data *data,
+            int (*rule)(bool, int, char*)) {
 	static Pixmap p;
 	static char *last_row, left[5] = { 0 };
 	static int line = 0, l;
-	struct animations_data *data = x->data;
 	int i, sum = 0;
 	if(line == 0) {
 		l = (data->dir & 2) == 0 ? x->a.width : x->a.height;
