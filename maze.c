@@ -141,17 +141,17 @@ int maze_step(struct maze *m, size_t size[], uint8_t alive_max) {
 			m->buf[i] |= ALIVE;
 			drw |= UPDATE;
 		}
-		if(NZ(drw & UPDATE)) {
-			if(i == 0 || (drw & WHITE) != NZ(m->buf[i] & ALIVE)) {
-				drw = NZ(m->buf[i] & ALIVE);
-				XSetForeground(m->x.disp, m->w.gc, NZ(m->buf[i] & ALIVE) ?
-				  XWhitePixel(m->x.disp, m->x.scr) :
-				  XBlackPixel(m->x.disp, m->x.scr));
-			} else
-				drw &= ~UPDATE;
-			XDrawPoint(m->x.disp, m->p, m->w.gc,
-			  i % m->w.attr.width, i / m->w.attr.width);
-		}
+		if(NZ(drw & UPDATE) == 0)
+			continue;
+		if(i == 0 || (drw & WHITE) != NZ(m->buf[i] & ALIVE)) {
+			drw = NZ(m->buf[i] & ALIVE);
+			XSetForeground(m->x.disp, m->w.gc, NZ(m->buf[i] & ALIVE) ?
+			  XWhitePixel(m->x.disp, m->x.scr) :
+			  XBlackPixel(m->x.disp, m->x.scr));
+		} else
+			drw &= ~UPDATE;
+		XDrawPoint(m->x.disp, m->p, m->w.gc,
+		  i % m->w.attr.width, i / m->w.attr.width);
 	}
 	xbp_setpixmap(&m->x, &m->w, &m->p);
 	return 0;
