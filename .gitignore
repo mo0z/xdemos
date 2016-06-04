@@ -1,5 +1,8 @@
 animations.o
+maze
+maze.o
+xbp.o
 xrootgen
+xrootgen.o
 xrootgen1
 xrootgen1.o
-xrootgen.o

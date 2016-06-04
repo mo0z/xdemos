@@ -1,7 +1,8 @@
 
-// maze.c
+// maze2.c
 
 #include <stdbool.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -10,6 +11,36 @@
 
 #define ATTR_SIZE(w) ((size_t)((w)->attr.width * (w)->attr.height))
 
+#define LEFT_TOP     (1 << 0)
+#define TOP          (1 << 1)
+#define RIGHT_TOP    (1 << 2)
+#define LEFT         (1 << 3)
+#define RIGHT        (1 << 4)
+#define LEFT_BOTTOM  (1 << 5)
+#define BOTTOM       (1 << 6)
+#define RIGHT_BOTTOM (1 << 7)
+#define ALIVE        (1 << 8)
+#define DIED         (1 << 9)
+
+#define X(n, s) ((n) % (s)[0])
+#define Y(n, s) ((n) / (s)[0])
+#define FIRSTROW(n, s) (Y((n), (s)) == 0)
+#define FIRSTCOL(n, s) (X((n), (s)) == 0)
+
+#define NZ(x) ((x) != 0)
+#define NSUM(b, i) (NZ((b)[i] & LEFT_TOP) + NZ((b)[i] & TOP) + \
+	NZ((b)[i] & RIGHT_TOP) + NZ((b)[i] & LEFT) + NZ((b)[i] & RIGHT) + \
+	NZ((b)[i] & LEFT_BOTTOM) + NZ((b)[i] & BOTTOM) + NZ((b)[i] & RIGHT_BOTTOM))
+
+#define TIMESPECLD(t) ((long double)(t).tv_nsec / 1000000000 + (t).tv_sec)
+
+struct maze {
+	struct xbp x;
+	struct xbp_win w;
+	uint16_t *buf;
+	Pixmap p;
+};
+
 int keypressed(struct xbp *x) {
 	char kr[32];
 	XQueryKeymap(x->disp, kr);
@@ -17,75 +48,159 @@ int keypressed(struct xbp *x) {
 	return (kr[4] & 0x20) && (kr[6] & 0x04);
 }
 
-static char toroidal_sum(const char *c, size_t i, int w, int h) {
-#define X (i % w)
-#define Y (i / w)
-#define FIRSTROW (Y == 0)
-#define FIRSTCOL (X == 0)
-#define TOP    (FIRSTROW * h + Y - 1)
-#define LEFT   (FIRSTCOL * w + X - 1)
-#define BOTTOM ((Y + 1) % h)
-#define RIGHT  ((X + 1) % w)
-	return c[LEFT + TOP * w] + c[X + TOP * w] + c[RIGHT + TOP * w] +
-	  c[LEFT + Y * w] + c[RIGHT + Y * w] +
-	  c[LEFT + BOTTOM * w] + c[X + BOTTOM * w] + c[RIGHT + BOTTOM * w];
-}
-
-void update(struct xbp *x, struct xbp_win *w, char *c, char *c_new, Pixmap *p) {
-	size_t i;
-	char nsum;
-	for(i = 0; i < ATTR_SIZE(w); i++) {
-		nsum = toroidal_sum(c, i, w->attr.width,w->attr.height);
-		c_new[i] = c[i] != 0 ? !(nsum > 5) : (nsum == 3);
-	}
-	for(i = 0; i < ATTR_SIZE(w); i++) {
-		if(i == 0 || c_new[i] ^ c_new[i - 1])
-			XSetForeground(x->disp, w->gc, c_new[i] == 0 ?
-			  XBlackPixel(x->disp, x->scr) : XWhitePixel(x->disp, x->scr));
-		XDrawPoint(x->disp, *p, w->gc, i % w->attr.width, i / w->attr.width);
-	}
-}
-
-int main(int argc, char *argv[]) {
-	Pixmap p;
-	struct xbp x;
-	struct xbp_win w;
-	char *c;
-	size_t i, size;
-	bool fb = false;
-	if(xbp_connect(&x, NULL) < 0)
-		return EXIT_FAILURE;
-	xbp_getfullscreenwin(&x, &w);
-	xbp_cursorinvisible(&x, &w);
-	p = XCreatePixmap(x.disp, w.win, w.attr.width, w.attr.height, w.attr.depth);
-	size = ATTR_SIZE(&w);
-	/* TODO: instead of a flipflop buffer, I should have a 3 * width
-	 * nsum buffer. the first 2 will stack down vertically over the screen and
-	 * the third buffer holds the counts of the top row...
-	 */
-	c = malloc(size * 2);
-	if(c == NULL) {
+int maze_init(struct maze *m, size_t *size) {
+	size_t i, c;
+	m->buf = NULL;
+	if(xbp_connect(&m->x, NULL) < 0)
+		return -1;
+	xbp_getfullscreenwin(&m->x, &m->w);
+	xbp_cursorinvisible(&m->x, &m->w);
+	m->p = XCreatePixmap(m->x.disp, m->w.win,
+	  m->w.attr.width, m->w.attr.height, m->w.attr.depth);
+	*size = ATTR_SIZE(&m->w);
+	m->buf = malloc(*size * sizeof *m->buf);
+	if(m->buf == NULL) {
 		perror("malloc");
-		goto fail_c;
+		return -1;
 	}
-	memset(c, 0, size);
-	srand(time(NULL));
+	memset(m->buf, 0, *size * sizeof *m->buf);
+	XSetForeground(m->x.disp, m->w.gc, XBlackPixel(m->x.disp, m->x.scr));
+	XFillRectangle(m->x.disp, m->p, m->w.gc, 0, 0,
+	  m->w.attr.width, m->w.attr.height);
+	XSetForeground(m->x.disp, m->w.gc, XWhitePixel(m->x.disp, m->x.scr));
 	for(i = 0; i < 100; i++) {
-		c[w.attr.width * (w.attr.height / 2 - 5) + w.attr.width * (i / 10) +
-		  w.attr.width / 2 - 5 + i % 10] = rand() & 1;
+		if((rand() & 1) == 0)
+			continue;
+		c = m->w.attr.width * ((m->w.attr.height / 2 - 5) + (i / 10)) +
+		  m->w.attr.width / 2 - 5 + i % 10;
+		m->buf[c] = ALIVE;
+		XDrawPoint(m->x.disp, m->p, m->w.gc,
+		  c % m->w.attr.width, c / m->w.attr.width);
 	}
-	xbp_setpixmap(&x, &w, &p);
+	XSetForeground(m->x.disp, m->w.gc, XBlackPixel(m->x.disp, m->x.scr));
+	xbp_setpixmap(&m->x, &m->w, &m->p);
+	return 0;
+}
+
+char popcount(uint8_t c) {
+	static char popc[256] = {
+		0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4,
+		0,
+	};
+	size_t i;
+	if(popc[16] == 0)
+		for(i = 16; i < 256; i++) {
+			popc[i] = popc[i % 16] + popc[i / 16];
+		}
+	return popc[c];
+}
+
+#define SET_BIT(a, v, l) do { \
+	if(NZ((a) & (v)) != NZ(l)) \
+		(a) ^= (v); \
+} while(0)
+int maze_step(struct maze *m, size_t size[], uint8_t alive_max) {
+	register size_t i, n = size[0] * size[1], nsum;
+	register bool alive;
+	size_t a, b, l, r, x, y;
+	enum {
+		WHITE = 1,
+		UPDATE = 2,
+	} drw = 0;
+	for(i = 0; i < n; i++) {
+		if(m->buf[i] == 0)
+			continue;
+		a = (FIRSTROW(i, size) * size[1] + Y(i, size) - 1) * size[0];
+		b = ((Y(i, size) + 1) % size[1]) * size[0];
+		l = FIRSTCOL(i, size) * size[0] + X(i, size) - 1;
+		r = (X(i, size) + 1) % size[0];
+		x = X(i, size);
+		y = Y(i, size) * size[0];
+		alive = NZ(m->buf[i] & ALIVE);
+		SET_BIT(m->buf[l + a], RIGHT_BOTTOM, alive);
+		SET_BIT(m->buf[x + a], BOTTOM, alive);
+		SET_BIT(m->buf[r + a], LEFT_BOTTOM, alive);
+		SET_BIT(m->buf[l + y], RIGHT, alive);
+		SET_BIT(m->buf[r + y], LEFT, alive);
+		SET_BIT(m->buf[l + b], RIGHT_TOP, alive);
+		SET_BIT(m->buf[x + b], TOP, alive);
+		SET_BIT(m->buf[r + b], LEFT_TOP, alive);
+	}
+	for(i = 0; i < n; i++) {
+		m->buf[i] &= ~DIED;
+		if(m->buf[i] == 0)
+			continue;
+		nsum = popcount(m->buf[i] & 0xff);
+		if(NZ(m->buf[i] & ALIVE) && nsum > alive_max) {
+			m->buf[i] &= ~ALIVE;
+			m->buf[i] |= DIED;
+			drw |= UPDATE;
+		} else if(nsum == 3) {
+			m->buf[i] |= ALIVE;
+			drw |= UPDATE;
+		}
+		if(NZ(drw & UPDATE)) {
+			if(i == 0 || (drw & WHITE) != NZ(m->buf[i] & ALIVE)) {
+				drw = NZ(m->buf[i] & ALIVE);
+				XSetForeground(m->x.disp, m->w.gc, NZ(m->buf[i] & ALIVE) ?
+				  XWhitePixel(m->x.disp, m->x.scr) :
+				  XBlackPixel(m->x.disp, m->x.scr));
+			} else
+				drw &= ~UPDATE;
+			XDrawPoint(m->x.disp, m->p, m->w.gc,
+			  i % m->w.attr.width, i / m->w.attr.width);
+		}
+	}
+	xbp_setpixmap(&m->x, &m->w, &m->p);
+	return 0;
+}
+
+void maze_cleanup(struct maze *m) {
+	free(m->buf);
+	xbp_destroywin(&m->x, &m->w);
+	XFreePixmap(m->x.disp, m->p);
+	xbp_disconnect(&m->x);
+}
+
+int main(void) {
+	struct maze m;
+	struct timespec tp, tq;
+	size_t size, numframes = 0;
+	int ret = EXIT_FAILURE;
+	uint8_t alive_max = 5;
+	bool timerec = true;
+	srand(time(NULL));
+	if(maze_init(&m, &size) < 0)
+		goto error;
+	if(clock_gettime(CLOCK_MONOTONIC, &tq) < 0) {
+		perror("clock_gettime");
+		timerec = false;
+	}
 	do {
-		update(&x, &w, c + fb * size, c + (fb ^ true) * size, &p);
-		fb ^= true;
-		xbp_setpixmap(&x, &w, &p);
-	} while(keypressed(&x) == 0);
-	free(c);
-fail_c:
-	XFreePixmap(x.disp, p);
-	xbp_destroywin(&x, &w);
-	xbp_disconnect(&x);
-	return EXIT_SUCCESS;
-	(void)argc;
-	(void)argv;
+		if(maze_step(&m, (size_t[]){ m.w.attr.width, m.w.attr.height },
+		  alive_max) < 0)
+			break;
+		numframes++;
+	} while(keypressed(&m.x) == 0);
+	if(clock_gettime(CLOCK_MONOTONIC, &tp) < 0) {
+		perror("clock_gettime");
+		timerec = false;
+	}
+	fprintf(stderr, "Calculated %zu frames in ", numframes);
+	if(timerec == true) {
+		if(tp.tv_nsec < tq.tv_nsec) {
+			tp.tv_sec--;
+			tp.tv_nsec += 1000000000;
+		}
+		tp.tv_nsec -= tq.tv_nsec;
+		tp.tv_sec -= tq.tv_sec;
+		fprintf(stderr, "%.3Lf\n", TIMESPECLD(tp));
+		fprintf(stderr, "FPS: %.3Lf\n",
+		  (long double)numframes / TIMESPECLD(tp));
+	} else
+		fprintf(stderr, "unknown time.\n");
+	ret = EXIT_SUCCESS;
+error:
+	maze_cleanup(&m);
+	return ret;
 }
