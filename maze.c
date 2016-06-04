@@ -111,12 +111,14 @@ int maze_step(struct maze *m, size_t size[], uint8_t alive_max) {
 		if(m->buf[i] == 0)
 			continue;
 		a = (FIRSTROW(i, size) * size[1] + Y(i, size) - 1) * size[0];
-		b = ((Y(i, size) + 1) % size[1]) * size[0];
 		l = FIRSTCOL(i, size) * size[0] + X(i, size) - 1;
+		alive = NZ(m->buf[i] & ALIVE);
+		if(NZ(m->buf[l + a] & RIGHT_BOTTOM) == alive)
+			continue;
+		b = ((Y(i, size) + 1) % size[1]) * size[0];
 		r = (X(i, size) + 1) % size[0];
 		x = X(i, size);
 		y = Y(i, size) * size[0];
-		alive = NZ(m->buf[i] & ALIVE);
 		SET_BIT(m->buf[l + a], RIGHT_BOTTOM, alive);
 		SET_BIT(m->buf[x + a], BOTTOM, alive);
 		SET_BIT(m->buf[r + a], LEFT_BOTTOM, alive);
