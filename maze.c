@@ -108,7 +108,7 @@ int maze_step(struct maze *m, size_t size[], uint8_t alive_max) {
 		UPDATE = 2,
 	} drw = 0;
 	for(i = 0; i < n; i++) {
-		if(m->buf[i] == 0)
+		if((m->buf[i] & (ALIVE|DIED)) == 0)
 			continue;
 		a = (FIRSTROW(i, size) * size[1] + Y(i, size) - 1) * size[0];
 		l = FIRSTCOL(i, size) * size[0] + X(i, size) - 1;
