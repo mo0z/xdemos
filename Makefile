@@ -5,12 +5,10 @@ LDLIBS += -lX11 -lbulk77i
 
 all: xrootgen life2d
 
-xrootgen1: xrootgen1.o
 xrootgen: xrootgen.o animations.o
 life2d: life2d.o xbp.o
 
-clean: xrootgen1 xrootgen1.o xrootgen xrootgen.o animations.o \
-		life2d life2d.o xbp.o
+clean: xrootgen xrootgen.o animations.o life2d life2d.o xbp.o
 	$(RM) $> $^
 
 include global.mk
