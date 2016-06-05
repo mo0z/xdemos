@@ -1,5 +1,5 @@
 
-/* maze.c
+/* life2d.c
  *
  * Copyright (c) 2016, mar77i <mar77i at mar77i dot ch>
  *

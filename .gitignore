@@ -1,6 +1,6 @@
 animations.o
-maze
-maze.o
+life2d
+life2d.o
 xbp.o
 xrootgen
 xrootgen.o
