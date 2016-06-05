@@ -11,11 +11,16 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <time.h>
 
 #include "xbp.h"
 
 #define ATTR_SIZE(w) ((size_t)((w)->attr.width * (w)->attr.height))
+#define SET_BIT(a, v, l) do { \
+	if(NZ((a) & (v)) != NZ(l)) \
+		(a) ^= (v); \
+} while(0)
 
 #define LEFT_TOP     (1 << 0)
 #define TOP          (1 << 1)
@@ -47,20 +52,56 @@ struct maze {
 	Pixmap p;
 };
 
-int keypressed(struct xbp *x) {
+struct life_mask {
+	uint16_t stay_alive;
+	uint16_t come_alive;
+} mazelife = { 0x3f, 0x08 },
+  mazectric = { 0x1f, 0x08 },
+  conway = { 0x0c, 0x08};
+
+static int keypressed(struct xbp *x) {
 	char kr[32];
 	XQueryKeymap(x->disp, kr);
 	// exit on LSHIFT|LCONTROL
 	return (kr[4] & 0x20) && (kr[6] & 0x04);
 }
 
-int maze_init(struct maze *m, size_t *size) {
-	size_t i, c;
+static int maze_args(int argc, char **argv, bool *help, bool *root,
+              struct life_mask **lm) {
+	int i;
+	for(i = 0; i < argc; i++) {
+		if(strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "--help") == 0) {
+			*help = true;
+			return 0;
+		} else if(strcmp(argv[i], "-r") == 0 || strcmp(argv[i], "--root") == 0)
+			*root = true;
+		else if(strcmp(argv[i], "--mazectric") == 0)
+			*lm = &mazectric;
+		else if(strcmp(argv[i], "--conway") == 0)
+			*lm = &conway;
+		else {
+			fprintf(stderr, "Error: unknown argument: `%s'.\n", argv[i]);
+			return -1;
+		}
+	}
+	return 0;
+}
+
+static void maze_usage(const char *argv0) {
+	printf("usage: %s [-h|--help] | [-r|--root] [--mazectric|--conway]\n",
+	  argv0);
+}
+
+static int maze_init(struct maze *m, size_t *size, bool root) {
 	m->buf = NULL;
 	if(xbp_connect(&m->x, NULL) < 0)
 		return -1;
-	xbp_getfullscreenwin(&m->x, &m->w);
-	xbp_cursorinvisible(&m->x, &m->w);
+	if(root == true)
+		xbp_getrootwin(&m->x, &m->w);
+	else {
+		xbp_getfullscreenwin(&m->x, &m->w);
+		xbp_cursorinvisible(&m->x, &m->w);
+	}
 	m->p = XCreatePixmap(m->x.disp, m->w.win,
 	  m->w.attr.width, m->w.attr.height, m->w.attr.depth);
 	*size = ATTR_SIZE(&m->w);
@@ -74,21 +115,37 @@ int maze_init(struct maze *m, size_t *size) {
 	XFillRectangle(m->x.disp, m->p, m->w.gc, 0, 0,
 	  m->w.attr.width, m->w.attr.height);
 	XSetForeground(m->x.disp, m->w.gc, XWhitePixel(m->x.disp, m->x.scr));
-	for(i = 0; i < 100; i++) {
-		if((rand() & 1) == 0)
-			continue;
-		c = m->w.attr.width * ((m->w.attr.height / 2 - 5) + (i / 10)) +
-		  m->w.attr.width / 2 - 5 + i % 10;
-		m->buf[c] = ALIVE;
-		XDrawPoint(m->x.disp, m->p, m->w.gc,
-		  c % m->w.attr.width, c / m->w.attr.width);
-	}
 	XSetForeground(m->x.disp, m->w.gc, XBlackPixel(m->x.disp, m->x.scr));
 	xbp_setpixmap(&m->x, &m->w, &m->p);
 	return 0;
 }
 
-char popcount(uint8_t c) {
+void maze_seed(struct maze *m, size_t w, size_t h) {
+	size_t i, c, n = w * h;
+	for(i = 0; i < n; i++) {
+		if((rand() & 1) == 0)
+			continue;
+		c = m->w.attr.width * ((m->w.attr.height - h) / 2 + (i / w)) +
+		  m->w.attr.width / 2 - w / 2 + i % w;
+		m->buf[c] = ALIVE;
+		XDrawPoint(m->x.disp, m->p, m->w.gc,
+		  c % m->w.attr.width, c / m->w.attr.width);
+	}
+}
+
+bool life_func(struct maze *m, size_t i, char nsum, struct life_mask lm) {
+	if(NZ(m->buf[i] & ALIVE) && (lm.stay_alive & (1 << nsum)) == 0) {
+		m->buf[i] &= ~ALIVE;
+		m->buf[i] |= DIED;
+		return true;
+	} else if((lm.come_alive & (1 << nsum)) != 0) {
+		m->buf[i] |= ALIVE;
+		return true;
+	}
+	return false;
+}
+
+static char popcount(uint8_t c) {
 	static char popc[256] = {
 		0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4,
 		0,
@@ -101,18 +158,11 @@ char popcount(uint8_t c) {
 	return popc[c];
 }
 
-#define SET_BIT(a, v, l) do { \
-	if(NZ((a) & (v)) != NZ(l)) \
-		(a) ^= (v); \
-} while(0)
-int maze_step(struct maze *m, size_t size[], uint8_t alive_max) {
-	register size_t i, n = size[0] * size[1], nsum;
+static int maze_step(struct maze *m, size_t size[], struct life_mask lm) {
+	register size_t i, n = size[0] * size[1];
 	register bool alive;
 	size_t a, b, l, r, x, y;
-	enum {
-		WHITE = 1,
-		UPDATE = 2,
-	} drw = 0;
+	bool white, update = false;
 	for(i = 0; i < n; i++) {
 		if((m->buf[i] & (ALIVE|DIED)) == 0)
 			continue;
@@ -138,24 +188,15 @@ int maze_step(struct maze *m, size_t size[], uint8_t alive_max) {
 		m->buf[i] &= ~DIED;
 		if(m->buf[i] == 0)
 			continue;
-		nsum = popcount(m->buf[i] & 0xff);
-		if(NZ(m->buf[i] & ALIVE) && nsum > alive_max) {
-			m->buf[i] &= ~ALIVE;
-			m->buf[i] |= DIED;
-			drw |= UPDATE;
-		} else if(nsum == 3) {
-			m->buf[i] |= ALIVE;
-			drw |= UPDATE;
-		}
-		if(NZ(drw & UPDATE) == 0)
+		update = life_func(m, i, popcount(m->buf[i] & 0xff), lm);
+		if(update == false)
 			continue;
-		if(i == 0 || (drw & WHITE) != NZ(m->buf[i] & ALIVE)) {
-			drw = NZ(m->buf[i] & ALIVE);
-			XSetForeground(m->x.disp, m->w.gc, NZ(m->buf[i] & ALIVE) ?
+		if(i == 0 || white != NZ(m->buf[i] & ALIVE)) {
+			white = NZ(m->buf[i] & ALIVE);
+			XSetForeground(m->x.disp, m->w.gc, white ?
 			  XWhitePixel(m->x.disp, m->x.scr) :
 			  XBlackPixel(m->x.disp, m->x.scr));
-		} else
-			drw &= ~UPDATE;
+		}
 		XDrawPoint(m->x.disp, m->p, m->w.gc,
 		  i % m->w.attr.width, i / m->w.attr.width);
 	}
@@ -163,30 +204,41 @@ int maze_step(struct maze *m, size_t size[], uint8_t alive_max) {
 	return 0;
 }
 
-void maze_cleanup(struct maze *m) {
+static void maze_cleanup(struct maze *m) {
 	free(m->buf);
 	xbp_destroywin(&m->x, &m->w);
 	XFreePixmap(m->x.disp, m->p);
 	xbp_disconnect(&m->x);
 }
 
-int main(void) {
+int main(int argc, char *argv[]) {
 	struct maze m;
 	struct timespec tp, tq;
 	size_t size, numframes = 0;
 	int ret = EXIT_FAILURE;
-	uint8_t alive_max = 5;
-	bool timerec = true;
+	struct life_mask *lm = &mazelife;
+	bool timerec = true, root = false, help = false;
 	srand(time(NULL));
-	if(maze_init(&m, &size) < 0)
+	if(maze_args(argc - 1, argv + 1, &help, &root, &lm) < 0)
+		return EXIT_FAILURE;
+	if(help == true) {
+		maze_usage(argv[0]);
+		return 0;
+	}
+	if(maze_init(&m, &size, root) < 0)
 		goto error;
+	if(lm == &mazelife || lm == &mazectric)
+		maze_seed(&m, 10, 10);
+	else if(lm == &conway)
+		maze_seed(&m, 100, 100);
 	if(clock_gettime(CLOCK_MONOTONIC, &tq) < 0) {
 		perror("clock_gettime");
 		timerec = false;
 	}
 	do {
-		if(maze_step(&m, (size_t[]){ m.w.attr.width, m.w.attr.height },
-		  alive_max) < 0)
+		if(maze_step(&m, (size_t[]){
+			m.w.attr.width, m.w.attr.height
+		  }, *lm) < 0)
 			break;
 		numframes++;
 	} while(keypressed(&m.x) == 0);
