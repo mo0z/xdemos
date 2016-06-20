@@ -67,7 +67,7 @@ static int keypressed(struct xbp *x) {
 }
 
 static int life2d_args(int argc, char **argv, bool *help, bool *root,
-              struct life2d_rule **lm) {
+              struct life2d_rule **lr) {
 	int i;
 	for(i = 0; i < argc; i++) {
 		if(strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "--help") == 0) {
@@ -76,9 +76,9 @@ static int life2d_args(int argc, char **argv, bool *help, bool *root,
 		} else if(strcmp(argv[i], "-r") == 0 || strcmp(argv[i], "--root") == 0)
 			*root = true;
 		else if(strcmp(argv[i], "--mazectric") == 0)
-			*lm = &mazectric;
+			*lr = &mazectric;
 		else if(strcmp(argv[i], "--conway") == 0)
-			*lm = &conway;
+			*lr = &conway;
 		else {
 			fprintf(stderr, "Error: unknown argument: `%s'.\n", argv[i]);
 			return -1;
@@ -92,54 +92,54 @@ static void life2d_usage(const char *argv0) {
 	  argv0);
 }
 
-static int life2d_init(struct life2d *m, size_t *size, bool root) {
-	m->buf = NULL;
-	if(xbp_connect(&m->x, NULL) < 0)
+static int life2d_init(struct life2d *l, size_t *size, bool root) {
+	l->buf = NULL;
+	if(xbp_connect(&l->x, NULL) < 0)
 		return -1;
 	if(root == true)
-		xbp_getrootwin(&m->x, &m->w);
+		xbp_getrootwin(&l->x, &l->w);
 	else {
-		xbp_getfullscreenwin(&m->x, &m->w);
-		xbp_cursorinvisible(&m->x, &m->w);
+		xbp_getfullscreenwin(&l->x, &l->w);
+		xbp_cursorinvisible(&l->x, &l->w);
 	}
-	m->p = XCreatePixmap(m->x.disp, m->w.win,
-	  m->w.attr.width, m->w.attr.height, m->w.attr.depth);
-	*size = ATTR_SIZE(&m->w);
-	m->buf = malloc(*size * sizeof *m->buf);
-	if(m->buf == NULL) {
+	l->p = XCreatePixmap(l->x.disp, l->w.win,
+	  l->w.attr.width, l->w.attr.height, l->w.attr.depth);
+	*size = ATTR_SIZE(&l->w);
+	l->buf = malloc(*size * sizeof *l->buf);
+	if(l->buf == NULL) {
 		perror("malloc");
 		return -1;
 	}
-	memset(m->buf, 0, *size * sizeof *m->buf);
-	XSetForeground(m->x.disp, m->w.gc, XBlackPixel(m->x.disp, m->x.scr));
-	XFillRectangle(m->x.disp, m->p, m->w.gc, 0, 0,
-	  m->w.attr.width, m->w.attr.height);
-	XSetForeground(m->x.disp, m->w.gc, XWhitePixel(m->x.disp, m->x.scr));
-	XSetForeground(m->x.disp, m->w.gc, XBlackPixel(m->x.disp, m->x.scr));
-	xbp_setpixmap(&m->x, &m->w, &m->p);
+	memset(l->buf, 0, *size * sizeof *l->buf);
+	XSetForeground(l->x.disp, l->w.gc, XBlackPixel(l->x.disp, l->x.scr));
+	XFillRectangle(l->x.disp, l->p, l->w.gc, 0, 0,
+	  l->w.attr.width, l->w.attr.height);
+	XSetForeground(l->x.disp, l->w.gc, XWhitePixel(l->x.disp, l->x.scr));
+	XSetForeground(l->x.disp, l->w.gc, XBlackPixel(l->x.disp, l->x.scr));
+	xbp_setpixmap(&l->x, &l->w, &l->p);
 	return 0;
 }
 
-void life2d_seed(struct life2d *m, size_t w, size_t h) {
+void life2d_seed(struct life2d *l, size_t w, size_t h) {
 	size_t i, c, n = w * h;
 	for(i = 0; i < n; i++) {
 		if((rand() & 1) == 0)
 			continue;
-		c = m->w.attr.width * ((m->w.attr.height - h) / 2 + (i / w)) +
-		  m->w.attr.width / 2 - w / 2 + i % w;
-		m->buf[c] = ALIVE;
-		XDrawPoint(m->x.disp, m->p, m->w.gc,
-		  c % m->w.attr.width, c / m->w.attr.width);
+		c = l->w.attr.width * ((l->w.attr.height - h) / 2 + (i / w)) +
+		  l->w.attr.width / 2 - w / 2 + i % w;
+		l->buf[c] = ALIVE;
+		XDrawPoint(l->x.disp, l->p, l->w.gc,
+		  c % l->w.attr.width, c / l->w.attr.width);
 	}
 }
 
-bool life_func(struct life2d *m, size_t i, char nsum, struct life2d_rule lm) {
-	if(NZ(m->buf[i] & ALIVE) && (lm.stay_alive & (1 << nsum)) == 0) {
-		m->buf[i] &= ~ALIVE;
-		m->buf[i] |= DIED;
+bool life_func(struct life2d *l, size_t i, char nsum, struct life2d_rule lr) {
+	if(NZ(l->buf[i] & ALIVE) && (lr.stay_alive & (1 << nsum)) == 0) {
+		l->buf[i] &= ~ALIVE;
+		l->buf[i] |= DIED;
 		return true;
-	} else if((lm.come_alive & (1 << nsum)) != 0) {
-		m->buf[i] |= ALIVE;
+	} else if((lr.come_alive & (1 << nsum)) != 0) {
+		l->buf[i] |= ALIVE;
 		return true;
 	}
 	return false;
@@ -158,90 +158,90 @@ static char popcount(uint8_t c) {
 	return popc[c];
 }
 
-static int life2d_step(struct life2d *m, size_t size[], struct life2d_rule lm) {
+static int life2d_step(struct life2d *l, size_t size[], struct life2d_rule lr) {
 	register size_t i, n = size[0] * size[1];
 	register bool alive;
-	size_t a, b, l, r, x, y;
+	size_t above, beneath, left, right, x, y;
 	bool white, update = false;
 	for(i = 0; i < n; i++) {
-		if((m->buf[i] & (ALIVE|DIED)) == 0)
+		if((l->buf[i] & (ALIVE|DIED)) == 0)
 			continue;
-		a = (FIRSTROW(i, size) * size[1] + Y(i, size) - 1) * size[0];
-		l = FIRSTCOL(i, size) * size[0] + X(i, size) - 1;
-		alive = NZ(m->buf[i] & ALIVE);
-		if(NZ(m->buf[l + a] & RIGHT_BOTTOM) == alive)
+		above = (FIRSTROW(i, size) * size[1] + Y(i, size) - 1) * size[0];
+		left = FIRSTCOL(i, size) * size[0] + X(i, size) - 1;
+		alive = NZ(l->buf[i] & ALIVE);
+		if(NZ(l->buf[left + above] & RIGHT_BOTTOM) == alive)
 			continue;
-		b = ((Y(i, size) + 1) % size[1]) * size[0];
-		r = (X(i, size) + 1) % size[0];
+		beneath = ((Y(i, size) + 1) % size[1]) * size[0];
+		right = (X(i, size) + 1) % size[0];
 		x = X(i, size);
 		y = Y(i, size) * size[0];
-		SET_BIT(m->buf[l + a], RIGHT_BOTTOM, alive);
-		SET_BIT(m->buf[x + a], BOTTOM, alive);
-		SET_BIT(m->buf[r + a], LEFT_BOTTOM, alive);
-		SET_BIT(m->buf[l + y], RIGHT, alive);
-		SET_BIT(m->buf[r + y], LEFT, alive);
-		SET_BIT(m->buf[l + b], RIGHT_TOP, alive);
-		SET_BIT(m->buf[x + b], TOP, alive);
-		SET_BIT(m->buf[r + b], LEFT_TOP, alive);
+		SET_BIT(l->buf[left + above], RIGHT_BOTTOM, alive);
+		SET_BIT(l->buf[x + above], BOTTOM, alive);
+		SET_BIT(l->buf[right + above], LEFT_BOTTOM, alive);
+		SET_BIT(l->buf[left + y], RIGHT, alive);
+		SET_BIT(l->buf[right + y], LEFT, alive);
+		SET_BIT(l->buf[left + beneath], RIGHT_TOP, alive);
+		SET_BIT(l->buf[x + beneath], TOP, alive);
+		SET_BIT(l->buf[right + beneath], LEFT_TOP, alive);
 	}
 	for(i = 0; i < n; i++) {
-		m->buf[i] &= ~DIED;
-		if(m->buf[i] == 0)
+		l->buf[i] &= ~DIED;
+		if(l->buf[i] == 0)
 			continue;
-		update = life_func(m, i, popcount(m->buf[i] & 0xff), lm);
+		update = life_func(l, i, popcount(l->buf[i] & 0xff), lr);
 		if(update == false)
 			continue;
-		if(i == 0 || white != NZ(m->buf[i] & ALIVE)) {
-			white = NZ(m->buf[i] & ALIVE);
-			XSetForeground(m->x.disp, m->w.gc, white ?
-			  XWhitePixel(m->x.disp, m->x.scr) :
-			  XBlackPixel(m->x.disp, m->x.scr));
+		if(i == 0 || white != NZ(l->buf[i] & ALIVE)) {
+			white = NZ(l->buf[i] & ALIVE);
+			XSetForeground(l->x.disp, l->w.gc, white ?
+			  XWhitePixel(l->x.disp, l->x.scr) :
+			  XBlackPixel(l->x.disp, l->x.scr));
 		}
-		XDrawPoint(m->x.disp, m->p, m->w.gc,
-		  i % m->w.attr.width, i / m->w.attr.width);
+		XDrawPoint(l->x.disp, l->p, l->w.gc,
+		  i % l->w.attr.width, i / l->w.attr.width);
 	}
-	xbp_setpixmap(&m->x, &m->w, &m->p);
+	xbp_setpixmap(&l->x, &l->w, &l->p);
 	return 0;
 }
 
-static void life2d_cleanup(struct life2d *m) {
-	free(m->buf);
-	xbp_destroywin(&m->x, &m->w);
-	XFreePixmap(m->x.disp, m->p);
-	xbp_disconnect(&m->x);
+static void life2d_cleanup(struct life2d *l) {
+	free(l->buf);
+	xbp_destroywin(&l->x, &l->w);
+	XFreePixmap(l->x.disp, l->p);
+	xbp_disconnect(&l->x);
 }
 
 int main(int argc, char *argv[]) {
-	struct life2d m;
+	struct life2d l;
 	struct timespec tp, tq;
 	size_t size, numframes = 0;
 	int ret = EXIT_FAILURE;
-	struct life2d_rule *lm = &maze;
+	struct life2d_rule *lr = &maze;
 	bool timerec = true, root = false, help = false;
 	srand(time(NULL));
-	if(life2d_args(argc - 1, argv + 1, &help, &root, &lm) < 0)
+	if(life2d_args(argc - 1, argv + 1, &help, &root, &lr) < 0)
 		return EXIT_FAILURE;
 	if(help == true) {
 		life2d_usage(argv[0]);
 		return 0;
 	}
-	if(life2d_init(&m, &size, root) < 0)
+	if(life2d_init(&l, &size, root) < 0)
 		goto error;
-	if(lm == &maze || lm == &mazectric)
-		life2d_seed(&m, 10, 10);
-	else if(lm == &conway)
-		life2d_seed(&m, 100, 100);
+	if(lr == &maze || lr == &mazectric)
+		life2d_seed(&l, 10, 10);
+	else if(lr == &conway)
+		life2d_seed(&l, 100, 100);
 	if(clock_gettime(CLOCK_MONOTONIC, &tq) < 0) {
 		perror("clock_gettime");
 		timerec = false;
 	}
 	do {
-		if(life2d_step(&m, (size_t[]){
-			m.w.attr.width, m.w.attr.height
-		  }, *lm) < 0)
+		if(life2d_step(&l, (size_t[]){
+			l.w.attr.width, l.w.attr.height
+		  }, *lr) < 0)
 			break;
 		numframes++;
-	} while(keypressed(&m.x) == 0);
+	} while(keypressed(&l.x) == 0);
 	if(clock_gettime(CLOCK_MONOTONIC, &tp) < 0) {
 		perror("clock_gettime");
 		timerec = false;
@@ -261,6 +261,6 @@ int main(int argc, char *argv[]) {
 		fprintf(stderr, "unknown time.\n");
 	ret = EXIT_SUCCESS;
 error:
-	life2d_cleanup(&m);
+	life2d_cleanup(&l);
 	return ret;
 }
