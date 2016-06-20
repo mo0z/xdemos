@@ -17,7 +17,6 @@
 #include "time_stat.h"
 #include "xbp.h"
 
-#define ATTR_SIZE(w) ((size_t)((w)->attr.width * (w)->attr.height))
 #define SET_BIT(a, v, l) do { \
 	if(NZ((a) & (v)) != NZ(l)) \
 		(a) ^= (v); \
@@ -34,10 +33,14 @@
 #define ALIVE        (1 << 8)
 #define DIED         (1 << 9)
 
-#define X(n, s) ((n) % (s)[0])
-#define Y(n, s) ((n) / (s)[0])
-#define FIRSTROW(n, s) (Y((n), (s)) == 0)
-#define FIRSTCOL(n, s) (X((n), (s)) == 0)
+#define WIDTH(l) (l)->w.attr.width
+#define HEIGHT(l) (l)->w.attr.height
+#define ATTR_SIZE(l) ((size_t)(WIDTH(l) * HEIGHT(l)))
+
+#define X(l, n) ((n) % WIDTH(l))
+#define Y(l, n) ((n) / WIDTH(l))
+#define FIRSTCOL(l, n) (X((l), (n)) == 0)
+#define FIRSTROW(l, n) (Y((l), (n)) == 0)
 
 #define NZ(x) ((x) != 0)
 #define NSUM(b, i) (NZ((b)[i] & LEFT_TOP) + NZ((b)[i] & TOP) + \
@@ -104,8 +107,8 @@ static int life2d_init(struct life2d *l, size_t *size, bool root) {
 		xbp_cursorinvisible(&l->x, &l->w);
 	}
 	l->p = XCreatePixmap(l->x.disp, l->w.win,
-	  l->w.attr.width, l->w.attr.height, l->w.attr.depth);
-	*size = ATTR_SIZE(&l->w);
+	  WIDTH(l), HEIGHT(l), l->w.attr.depth);
+	*size = ATTR_SIZE(l);
 	l->buf = malloc(*size * sizeof *l->buf);
 	if(l->buf == NULL) {
 		perror("malloc");
@@ -113,8 +116,7 @@ static int life2d_init(struct life2d *l, size_t *size, bool root) {
 	}
 	memset(l->buf, 0, *size * sizeof *l->buf);
 	XSetForeground(l->x.disp, l->w.gc, XBlackPixel(l->x.disp, l->x.scr));
-	XFillRectangle(l->x.disp, l->p, l->w.gc, 0, 0,
-	  l->w.attr.width, l->w.attr.height);
+	XFillRectangle(l->x.disp, l->p, l->w.gc, 0, 0, WIDTH(l), HEIGHT(l));
 	XSetForeground(l->x.disp, l->w.gc, XWhitePixel(l->x.disp, l->x.scr));
 	XSetForeground(l->x.disp, l->w.gc, XBlackPixel(l->x.disp, l->x.scr));
 	xbp_setpixmap(&l->x, &l->w, &l->p);
@@ -126,11 +128,10 @@ void life2d_seed(struct life2d *l, size_t w, size_t h) {
 	for(i = 0; i < n; i++) {
 		if((rand() & 1) == 0)
 			continue;
-		c = l->w.attr.width * ((l->w.attr.height - h) / 2 + (i / w)) +
-		  l->w.attr.width / 2 - w / 2 + i % w;
+		c = WIDTH(l) * ((HEIGHT(l) - h) / 2 + (i / w)) +
+		  WIDTH(l) / 2 - w / 2 + i % w;
 		l->buf[c] = ALIVE;
-		XDrawPoint(l->x.disp, l->p, l->w.gc,
-		  c % l->w.attr.width, c / l->w.attr.width);
+		XDrawPoint(l->x.disp, l->p, l->w.gc, c % WIDTH(l), c / WIDTH(l));
 	}
 }
 
@@ -159,23 +160,23 @@ static char popcount(uint8_t c) {
 	return popc[c];
 }
 
-static int life2d_step(struct life2d *l, size_t size[], struct life2d_rule lr) {
-	register size_t i, n = size[0] * size[1];
+static int life2d_step(struct life2d *l, size_t size, struct life2d_rule lr) {
+	register size_t i;
 	register bool alive;
 	size_t above, beneath, left, right, x, y;
 	bool white, update = false;
-	for(i = 0; i < n; i++) {
+	for(i = 0; i < size; i++) {
 		if((l->buf[i] & (ALIVE|DIED)) == 0)
 			continue;
-		above = (FIRSTROW(i, size) * size[1] + Y(i, size) - 1) * size[0];
-		left = FIRSTCOL(i, size) * size[0] + X(i, size) - 1;
+		above = (FIRSTROW(l, i) * HEIGHT(l) + Y(l, i) - 1) * WIDTH(l);
+		left = FIRSTCOL(l, i) * WIDTH(l) + X(l, i) - 1;
 		alive = NZ(l->buf[i] & ALIVE);
 		if(NZ(l->buf[left + above] & RIGHT_BOTTOM) == alive)
 			continue;
-		beneath = ((Y(i, size) + 1) % size[1]) * size[0];
-		right = (X(i, size) + 1) % size[0];
-		x = X(i, size);
-		y = Y(i, size) * size[0];
+		beneath = ((Y(l, i) + 1) % HEIGHT(l)) * WIDTH(l);
+		right = (X(l, i) + 1) % WIDTH(l);
+		x = X(l, i);
+		y = Y(l, i) * WIDTH(l);
 		SET_BIT(l->buf[left + above], RIGHT_BOTTOM, alive);
 		SET_BIT(l->buf[x + above], BOTTOM, alive);
 		SET_BIT(l->buf[right + above], LEFT_BOTTOM, alive);
@@ -185,7 +186,7 @@ static int life2d_step(struct life2d *l, size_t size[], struct life2d_rule lr) {
 		SET_BIT(l->buf[x + beneath], TOP, alive);
 		SET_BIT(l->buf[right + beneath], LEFT_TOP, alive);
 	}
-	for(i = 0; i < n; i++) {
+	for(i = 0; i < size; i++) {
 		l->buf[i] &= ~DIED;
 		if(l->buf[i] == 0)
 			continue;
@@ -235,9 +236,7 @@ int main(int argc, char *argv[]) {
 		life2d_seed(&l, 100, 100);
 	time_stat_start(&t);
 	do {
-		if(life2d_step(&l, (size_t[]){
-			l.w.attr.width, l.w.attr.height
-		  }, *lr) < 0)
+		if(life2d_step(&l, size, *lr) < 0)
 			break;
 		t.numframes++;
 	} while(keypressed(&l.x) == 0);
