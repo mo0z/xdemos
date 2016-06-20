@@ -65,15 +65,16 @@ static int keypressed(struct xbp *x) {
 	return (kr[4] & 0x20) && (kr[6] & 0x04);
 }
 
-static int life2d_args(int argc, char **argv, bool *help, bool *root,
-              struct life2d_rule **lr) {
+static int life2d_args(int argc, char **argv, bool *root,
+                       struct life2d_rule **lr) {
 	int i;
 	for(i = 0; i < argc; i++) {
-		if(strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "--help") == 0) {
-			*help = true;
-			return 0;
-		} else if(strcmp(argv[i], "-r") == 0 || strcmp(argv[i], "--root") == 0)
+		if(strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "--help") == 0)
+			return 1;
+		else if(strcmp(argv[i], "-r") == 0 || strcmp(argv[i], "--root") == 0)
 			*root = true;
+		else if(strcmp(argv[i], "--maze") == 0)
+			*lr = &maze;
 		else if(strcmp(argv[i], "--mazectric") == 0)
 			*lr = &mazectric;
 		else if(strcmp(argv[i], "--conway") == 0)
@@ -87,7 +88,8 @@ static int life2d_args(int argc, char **argv, bool *help, bool *root,
 }
 
 static void life2d_usage(const char *argv0) {
-	printf("usage: %s [-h|--help] | [-r|--root] [--mazectric|--conway]\n",
+	printf("usage: %s [-h|--help] | "
+	  "[-r|--root] [--maze|--mazectric|--conway]\n",
 	  argv0);
 }
 
@@ -216,13 +218,14 @@ int main(int argc, char *argv[]) {
 	size_t size;
 	int ret = EXIT_FAILURE;
 	struct life2d_rule *lr = &maze;
-	bool root = false, help = false;
+	bool root = false;
 	srand(time(NULL));
-	if(life2d_args(argc - 1, argv + 1, &help, &root, &lr) < 0)
+	switch(life2d_args(argc - 1, argv + 1, &root, &lr)) {
+	case -1:
 		return EXIT_FAILURE;
-	if(help == true) {
+	case 1:
 		life2d_usage(argv[0]);
-		return 0;
+		return EXIT_SUCCESS;
 	}
 	if(life2d_init(&l, &size, root) < 0)
 		goto error;
