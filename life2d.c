@@ -14,6 +14,7 @@
 #include <string.h>
 #include <time.h>
 
+#include "time_stat.h"
 #include "xbp.h"
 
 #define ATTR_SIZE(w) ((size_t)((w)->attr.width * (w)->attr.height))
@@ -42,8 +43,6 @@
 #define NSUM(b, i) (NZ((b)[i] & LEFT_TOP) + NZ((b)[i] & TOP) + \
 	NZ((b)[i] & RIGHT_TOP) + NZ((b)[i] & LEFT) + NZ((b)[i] & RIGHT) + \
 	NZ((b)[i] & LEFT_BOTTOM) + NZ((b)[i] & BOTTOM) + NZ((b)[i] & RIGHT_BOTTOM))
-
-#define TIMESPECLD(t) ((long double)(t).tv_nsec / 1000000000 + (t).tv_sec)
 
 struct life2d {
 	struct xbp x;
@@ -213,11 +212,11 @@ static void life2d_cleanup(struct life2d *l) {
 
 int main(int argc, char *argv[]) {
 	struct life2d l;
-	struct timespec tp, tq;
-	size_t size, numframes = 0;
+	struct time_stat t;
+	size_t size;
 	int ret = EXIT_FAILURE;
 	struct life2d_rule *lr = &maze;
-	bool timerec = true, root = false, help = false;
+	bool root = false, help = false;
 	srand(time(NULL));
 	if(life2d_args(argc - 1, argv + 1, &help, &root, &lr) < 0)
 		return EXIT_FAILURE;
@@ -231,34 +230,16 @@ int main(int argc, char *argv[]) {
 		life2d_seed(&l, 10, 10);
 	else if(lr == &conway)
 		life2d_seed(&l, 100, 100);
-	if(clock_gettime(CLOCK_MONOTONIC, &tq) < 0) {
-		perror("clock_gettime");
-		timerec = false;
-	}
+	time_stat_start(&t);
 	do {
 		if(life2d_step(&l, (size_t[]){
 			l.w.attr.width, l.w.attr.height
 		  }, *lr) < 0)
 			break;
-		numframes++;
+		t.numframes++;
 	} while(keypressed(&l.x) == 0);
-	if(clock_gettime(CLOCK_MONOTONIC, &tp) < 0) {
-		perror("clock_gettime");
-		timerec = false;
-	}
-	fprintf(stderr, "Calculated %zu frames in ", numframes);
-	if(timerec == true) {
-		if(tp.tv_nsec < tq.tv_nsec) {
-			tp.tv_sec--;
-			tp.tv_nsec += 1000000000;
-		}
-		tp.tv_nsec -= tq.tv_nsec;
-		tp.tv_sec -= tq.tv_sec;
-		fprintf(stderr, "%.3Lf\n", TIMESPECLD(tp));
-		fprintf(stderr, "FPS: %.3Lf\n",
-		  (long double)numframes / TIMESPECLD(tp));
-	} else
-		fprintf(stderr, "unknown time.\n");
+	time_stat_end(&t);
+	time_stat_status(&t);
 	ret = EXIT_SUCCESS;
 error:
 	life2d_cleanup(&l);

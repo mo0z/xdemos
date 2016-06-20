@@ -1,6 +1,7 @@
 animations.o
 life2d
 life2d.o
+time_stat.o
 xbp.o
 xrootgen
 xrootgen.o
