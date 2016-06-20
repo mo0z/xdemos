@@ -45,17 +45,17 @@
 
 #define TIMESPECLD(t) ((long double)(t).tv_nsec / 1000000000 + (t).tv_sec)
 
-struct maze {
+struct life2d {
 	struct xbp x;
 	struct xbp_win w;
 	uint16_t *buf;
 	Pixmap p;
 };
 
-struct life_mask {
+struct life2d_rule {
 	uint16_t stay_alive;
 	uint16_t come_alive;
-} mazelife = { 0x3f, 0x08 },
+} maze = { 0x3f, 0x08 },
   mazectric = { 0x1f, 0x08 },
   conway = { 0x0c, 0x08};
 
@@ -66,8 +66,8 @@ static int keypressed(struct xbp *x) {
 	return (kr[4] & 0x20) && (kr[6] & 0x04);
 }
 
-static int maze_args(int argc, char **argv, bool *help, bool *root,
-              struct life_mask **lm) {
+static int life2d_args(int argc, char **argv, bool *help, bool *root,
+              struct life2d_rule **lm) {
 	int i;
 	for(i = 0; i < argc; i++) {
 		if(strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "--help") == 0) {
@@ -87,12 +87,12 @@ static int maze_args(int argc, char **argv, bool *help, bool *root,
 	return 0;
 }
 
-static void maze_usage(const char *argv0) {
+static void life2d_usage(const char *argv0) {
 	printf("usage: %s [-h|--help] | [-r|--root] [--mazectric|--conway]\n",
 	  argv0);
 }
 
-static int maze_init(struct maze *m, size_t *size, bool root) {
+static int life2d_init(struct life2d *m, size_t *size, bool root) {
 	m->buf = NULL;
 	if(xbp_connect(&m->x, NULL) < 0)
 		return -1;
@@ -120,7 +120,7 @@ static int maze_init(struct maze *m, size_t *size, bool root) {
 	return 0;
 }
 
-void maze_seed(struct maze *m, size_t w, size_t h) {
+void life2d_seed(struct life2d *m, size_t w, size_t h) {
 	size_t i, c, n = w * h;
 	for(i = 0; i < n; i++) {
 		if((rand() & 1) == 0)
@@ -133,7 +133,7 @@ void maze_seed(struct maze *m, size_t w, size_t h) {
 	}
 }
 
-bool life_func(struct maze *m, size_t i, char nsum, struct life_mask lm) {
+bool life_func(struct life2d *m, size_t i, char nsum, struct life2d_rule lm) {
 	if(NZ(m->buf[i] & ALIVE) && (lm.stay_alive & (1 << nsum)) == 0) {
 		m->buf[i] &= ~ALIVE;
 		m->buf[i] |= DIED;
@@ -158,7 +158,7 @@ static char popcount(uint8_t c) {
 	return popc[c];
 }
 
-static int maze_step(struct maze *m, size_t size[], struct life_mask lm) {
+static int life2d_step(struct life2d *m, size_t size[], struct life2d_rule lm) {
 	register size_t i, n = size[0] * size[1];
 	register bool alive;
 	size_t a, b, l, r, x, y;
@@ -204,7 +204,7 @@ static int maze_step(struct maze *m, size_t size[], struct life_mask lm) {
 	return 0;
 }
 
-static void maze_cleanup(struct maze *m) {
+static void life2d_cleanup(struct life2d *m) {
 	free(m->buf);
 	xbp_destroywin(&m->x, &m->w);
 	XFreePixmap(m->x.disp, m->p);
@@ -212,31 +212,31 @@ static void maze_cleanup(struct maze *m) {
 }
 
 int main(int argc, char *argv[]) {
-	struct maze m;
+	struct life2d m;
 	struct timespec tp, tq;
 	size_t size, numframes = 0;
 	int ret = EXIT_FAILURE;
-	struct life_mask *lm = &mazelife;
+	struct life2d_rule *lm = &maze;
 	bool timerec = true, root = false, help = false;
 	srand(time(NULL));
-	if(maze_args(argc - 1, argv + 1, &help, &root, &lm) < 0)
+	if(life2d_args(argc - 1, argv + 1, &help, &root, &lm) < 0)
 		return EXIT_FAILURE;
 	if(help == true) {
-		maze_usage(argv[0]);
+		life2d_usage(argv[0]);
 		return 0;
 	}
-	if(maze_init(&m, &size, root) < 0)
+	if(life2d_init(&m, &size, root) < 0)
 		goto error;
-	if(lm == &mazelife || lm == &mazectric)
-		maze_seed(&m, 10, 10);
+	if(lm == &maze || lm == &mazectric)
+		life2d_seed(&m, 10, 10);
 	else if(lm == &conway)
-		maze_seed(&m, 100, 100);
+		life2d_seed(&m, 100, 100);
 	if(clock_gettime(CLOCK_MONOTONIC, &tq) < 0) {
 		perror("clock_gettime");
 		timerec = false;
 	}
 	do {
-		if(maze_step(&m, (size_t[]){
+		if(life2d_step(&m, (size_t[]){
 			m.w.attr.width, m.w.attr.height
 		  }, *lm) < 0)
 			break;
@@ -261,6 +261,6 @@ int main(int argc, char *argv[]) {
 		fprintf(stderr, "unknown time.\n");
 	ret = EXIT_SUCCESS;
 error:
-	maze_cleanup(&m);
+	life2d_cleanup(&m);
 	return ret;
 }
