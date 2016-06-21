@@ -36,11 +36,8 @@
 #define WIDTH(l) (l)->w.attr.width
 #define HEIGHT(l) (l)->w.attr.height
 #define ATTR_SIZE(l) ((size_t)(WIDTH(l) * HEIGHT(l)))
-
 #define X(l, n) ((n) % WIDTH(l))
 #define Y(l, n) ((n) / WIDTH(l))
-#define FIRSTCOL(l, n) (X((l), (n)) == 0)
-#define FIRSTROW(l, n) (Y((l), (n)) == 0)
 
 #define NZ(x) ((x) != 0)
 #define NSUM(b, i) (NZ((b)[i] & LEFT_TOP) + NZ((b)[i] & TOP) + \
@@ -163,8 +160,8 @@ static int life2d_step(struct life2d *l, size_t size, struct life2d_rule lr) {
 	for(i = 0; i < size; i++) {
 		if((l->buf[i] & (ALIVE|DIED)) == 0)
 			continue;
-		above = (FIRSTROW(l, i) * HEIGHT(l) + Y(l, i) - 1) * WIDTH(l);
-		left = FIRSTCOL(l, i) * WIDTH(l) + X(l, i) - 1;
+		above = ((Y(l, i) == 0) * HEIGHT(l) + Y(l, i) - 1) * WIDTH(l);
+		left = (X(l, i) == 0) * WIDTH(l) + X(l, i) - 1;
 		alive = NZ(l->buf[i] & ALIVE);
 		if(NZ(l->buf[left + above] & RIGHT_BOTTOM) == alive)
 			continue;
@@ -212,10 +209,11 @@ int main(int argc, char *argv[]) {
 	struct life2d l;
 	struct time_stat t;
 	size_t size;
+	struct life2d_rule *lr;
 	int ret = EXIT_FAILURE;
-	struct life2d_rule *lr = &maze;
 	bool root = false;
 	srand(time(NULL));
+	lr = (struct life2d_rule*[]){ &maze, &mazectric, &conway }[rand() % 3];
 	switch(life2d_args(argc - 1, argv + 1, &root, &lr)) {
 	case -1:
 		return EXIT_FAILURE;
