@@ -123,7 +123,7 @@ static int life2d_init(struct life2d *l, size_t *size, bool root) {
 	return 0;
 }
 
-void life2d_seed(struct life2d *l, size_t w, size_t h) {
+static void life2d_seed(struct life2d *l, size_t w, size_t h) {
 	size_t i, c, n = w * h;
 	for(i = 0; i < n; i++) {
 		if((rand() & 1) == 0)
@@ -135,7 +135,8 @@ void life2d_seed(struct life2d *l, size_t w, size_t h) {
 	}
 }
 
-bool life_func(struct life2d *l, size_t i, char nsum, struct life2d_rule lr) {
+static bool life_func(struct life2d *l, size_t i, uint8_t nsum,
+                      struct life2d_rule lr) {
 	if(NZ(l->buf[i] & ALIVE) && (lr.stay_alive & (1 << nsum)) == 0) {
 		l->buf[i] &= ~ALIVE;
 		l->buf[i] |= DIED;
@@ -147,17 +148,11 @@ bool life_func(struct life2d *l, size_t i, char nsum, struct life2d_rule lr) {
 	return false;
 }
 
-static char popcount(uint8_t c) {
-	static char popc[256] = {
-		0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4,
-		0,
-	};
-	size_t i;
-	if(popc[16] == 0)
-		for(i = 16; i < 256; i++) {
-			popc[i] = popc[i % 16] + popc[i / 16];
-		}
-	return popc[c];
+static uint8_t popcount(uint8_t c) {
+#define B(x) x, x + 1, x + 1, x + 2
+#define B16(x) B(x), B(x + 1), B(x + 1), B(x + 2)
+#define B64(x) B16(x), B16(x + 1), B16(x + 1), B16(x + 2)
+	return (uint8_t[]){ B64(0), B64(1), B64(1), B64(2) }[c];
 }
 
 static int life2d_step(struct life2d *l, size_t size, struct life2d_rule lr) {
