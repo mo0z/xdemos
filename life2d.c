@@ -115,7 +115,6 @@ static int life2d_init(struct life2d *l, size_t *size, bool root) {
 	XSetForeground(l->x.disp, l->w.gc, XBlackPixel(l->x.disp, l->x.scr));
 	XFillRectangle(l->x.disp, l->p, l->w.gc, 0, 0, WIDTH(l), HEIGHT(l));
 	XSetForeground(l->x.disp, l->w.gc, XWhitePixel(l->x.disp, l->x.scr));
-	XSetForeground(l->x.disp, l->w.gc, XBlackPixel(l->x.disp, l->x.scr));
 	xbp_setpixmap(&l->x, &l->w, &l->p);
 	return 0;
 }
