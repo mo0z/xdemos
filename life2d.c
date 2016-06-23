@@ -47,6 +47,7 @@
 struct life2d {
 	struct xbp x;
 	struct xbp_win w;
+	size_t size;
 	uint16_t *buf;
 	Pixmap p;
 };
@@ -93,7 +94,7 @@ static void life2d_usage(const char *argv0) {
 	  argv0);
 }
 
-static int life2d_init(struct life2d *l, size_t *size, bool root) {
+static int life2d_init(struct life2d *l, bool root) {
 	l->buf = NULL;
 	if(xbp_connect(&l->x, NULL) < 0)
 		return -1;
@@ -105,13 +106,13 @@ static int life2d_init(struct life2d *l, size_t *size, bool root) {
 	}
 	l->p = XCreatePixmap(l->x.disp, l->w.win,
 	  WIDTH(l), HEIGHT(l), l->w.attr.depth);
-	*size = ATTR_SIZE(l);
-	l->buf = malloc(*size * sizeof *l->buf);
+	l->size = ATTR_SIZE(l);
+	l->buf = malloc(l->size * sizeof *l->buf);
 	if(l->buf == NULL) {
 		perror("malloc");
 		return -1;
 	}
-	memset(l->buf, 0, *size * sizeof *l->buf);
+	memset(l->buf, 0, l->size * sizeof *l->buf);
 	XSetForeground(l->x.disp, l->w.gc, XBlackPixel(l->x.disp, l->x.scr));
 	XFillRectangle(l->x.disp, l->p, l->w.gc, 0, 0, WIDTH(l), HEIGHT(l));
 	XSetForeground(l->x.disp, l->w.gc, XWhitePixel(l->x.disp, l->x.scr));
@@ -151,12 +152,12 @@ static uint8_t popcount(uint8_t c) {
 	return (uint8_t[]){ B64(0), B64(1), B64(1), B64(2) }[c];
 }
 
-static int life2d_step(struct life2d *l, size_t size, struct life2d_rule lr) {
+static int life2d_step(struct life2d *l, struct life2d_rule lr) {
 	register size_t i;
 	register bool alive;
 	size_t above, beneath, left, right, x, y;
 	bool white, update = false;
-	for(i = 0; i < size; i++) {
+	for(i = 0; i < l->size; i++) {
 		if((l->buf[i] & (ALIVE|DIED)) == 0)
 			continue;
 		above = ((Y(l, i) == 0) * HEIGHT(l) + Y(l, i) - 1) * WIDTH(l);
@@ -177,7 +178,7 @@ static int life2d_step(struct life2d *l, size_t size, struct life2d_rule lr) {
 		SET_BIT(l->buf[x + beneath], TOP, alive);
 		SET_BIT(l->buf[right + beneath], LEFT_TOP, alive);
 	}
-	for(i = 0; i < size; i++) {
+	for(i = 0; i < l->size; i++) {
 		l->buf[i] &= ~DIED;
 		if(l->buf[i] == 0)
 			continue;
@@ -207,7 +208,6 @@ static void life2d_cleanup(struct life2d *l) {
 int main(int argc, char *argv[]) {
 	struct life2d l;
 	struct time_stat t;
-	size_t size;
 	struct life2d_rule *lr;
 	int ret = EXIT_FAILURE;
 	bool root = false;
@@ -220,7 +220,7 @@ int main(int argc, char *argv[]) {
 		life2d_usage(argv[0]);
 		return EXIT_SUCCESS;
 	}
-	if(life2d_init(&l, &size, root) < 0)
+	if(life2d_init(&l, root) < 0)
 		goto error;
 	if(lr == &maze || lr == &mazectric)
 		life2d_seed(&l, 10, 10);
@@ -228,7 +228,7 @@ int main(int argc, char *argv[]) {
 		life2d_seed(&l, 100, 100);
 	time_stat_start(&t);
 	do {
-		if(life2d_step(&l, size, *lr) < 0)
+		if(life2d_step(&l, *lr) < 0)
 			break;
 		t.numframes++;
 	} while(keypressed(&l.x) == 0);
