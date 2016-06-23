@@ -1,4 +1,6 @@
 animations.o
+life1d
+life1d.o
 life2d
 life2d.o
 time_stat.o
