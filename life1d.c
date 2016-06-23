@@ -49,7 +49,6 @@ struct life1d_rule {
 	int8_t neighbor; // neighbor negative value means uncompressed rule
 	uint8_t rule;
 } rule1771476584 = { 2, 0x14 },
-  rule126 = { 1, 0x06 },
   customrule = { -1, 0 };
 
 static int keypressed(struct xbp *x) {
@@ -77,8 +76,6 @@ static int life1d_args(int argc, char **argv, bool *root, enum direction *dir,
 			*dir = RIGHT;
 		else if(strcmp(argv[i], "--rule1771476584") == 0)
 			*lr = &rule1771476584;
-		else if(strcmp(argv[i], "--rule126") == 0)
-			*lr = &rule126;
 		else if(strncmp(argv[i], "--", 2) == 0 && strlen(argv[i]) > 2) {
 			*lr = &customrule;
 			(*lr)->rule = strtoul(argv[i] + 2, NULL, 10);
@@ -139,8 +136,10 @@ static void life1d_seed(struct life1d *l) {
 			  DIRX(l, i, l->row), DIRY(l, i, l->row));
 	}
 	// clear leftover bits
-	if(i % CHAR_BIT > 0)
+	if(i % CHAR_BIT > 0) {
+		printf("clearing %d\n", (1 << (i % CHAR_BIT)) - 1);
 		l->buf[i / CHAR_BIT] &= (1 << (i % CHAR_BIT)) - 1;
+	}
 	xbp_setpixmap(&l->x, &l->w, &l->p);
 	l->row++;
 }
@@ -164,6 +163,12 @@ static inline bool life_set(struct life1d *l, size_t byte, size_t bit, bool b) {
 	return (l->buf[byte] & set) != 0;
 }
 
+void binout(uint8_t n, FILE *fh) {
+	uint8_t i;
+	for(i = CHAR_BIT; i > 0; i--)
+		fputc('0' + ((n & (1 << (i - 1))) > 0), fh);
+}
+
 int life1d_step(struct life1d *l, struct life1d_rule lr) {
 	register size_t i;
 	register uint8_t accu;
@@ -172,15 +177,36 @@ int life1d_step(struct life1d *l, struct life1d_rule lr) {
 		return 1;
 	n = lr.neighbor * SIGN(lr.neighbor);
 	first = l->buf[0];
-	accu = ((l->buf[0] & ((1 << (n + 1)) - 1)) << n) |
-	  (l->buf[(l->pixels - 1) / CHAR_BIT] >> (((l->pixels - 1) % 8) - n));
-	for(i = 0; i < l->pixels; i++) {
+	accu = ((first & ((1 << (n + 1)) - 1)) << n) |
+	 (l->buf[(l->pixels - 1) / CHAR_BIT] >> (((l->pixels - 1) % CHAR_BIT) - n));
+/*
+	fprintf(stdout, "%zu: first: ", l->row);
+	binout(first, stdout);
+	fprintf(stdout, "; buf[%zu]: ", (l->pixels - 1) / CHAR_BIT);
+	binout(l->buf[(l->pixels - 1) / CHAR_BIT], stdout);
+	fputs("; accu: ", stdout);
+	binout(accu, stdout);
+	fputc('\n', stdout);
+*/
+	if(life_set(l, 0, 0, life_func(accu, lr)))
+		XDrawPoint(l->x.disp, l->p, l->w.gc,
+		  DIRX(l, 0, l->row), DIRY(l, 0, l->row));
+	for(i = 1; i < l->pixels; i++) {
 		accu >>= 1;
 		if(i < l->pixels - n)
 			accu |= (1 << (2 * n)) *
 			  ((l->buf[(i + n) / CHAR_BIT] & (1 << ((i + n) % CHAR_BIT))) != 0);
-		else
-			accu |= (1 << (2 * n)) * ((first & (1 << (l->pixels - i))) != 0);
+		else {
+			accu |= (1 << (2 * n)) *
+			  ((first & (1 << (l->pixels - i - 1))) != 0);
+/*
+			fprintf(stdout, "%zu (end): first: ", l->row);
+			binout(first, stdout);
+			fputs("; accu: ", stdout);
+			binout(accu, stdout);
+			fputc('\n', stdout);
+*/
+		}
 		if(life_set(l, i / CHAR_BIT, i % CHAR_BIT, life_func(accu, lr)))
 			XDrawPoint(l->x.disp, l->p, l->w.gc,
 			  DIRX(l, i, l->row), DIRY(l, i, l->row));
@@ -200,13 +226,31 @@ static void life1d_cleanup(struct life1d *l) {
 int main(int argc, char *argv[]) {
 	struct life1d l;
 	struct time_stat t;
+	size_t i;
 	struct life1d_rule *lr;
 	int ret = EXIT_FAILURE;
 	bool root = false, running = true;
 	srand(time(NULL));
-	lr = (struct life1d_rule*[]){
-		&rule1771476584, &rule126
-	}[rand() % 2];
+/*
+	if(rand() % 2 == 0)
+		lr = &rule1771476584;
+	else {
+*/
+		lr = &customrule;
+		lr->rule = (uint8_t[]){
+			 13,  18,  22,  26,  28,  30,  45,  50,
+			 54,  57,  58,  60,  62,  69,  70,  73,
+			 75,  77,  78,  79,  82,  86,  89,  90,
+			 92,  93,  94,  99, 101, 102, 105, 107,
+			109, 110, 114, 118, 121, 122, 124, 126,
+			129, 131, 133, 135, 137, 141, 145, 146,
+			147, 149, 150, 153, 154, 156, 157, 158,
+			161, 163, 165, 167, 169, 177, 178, 179,
+			181, 182, 186, 188, 190, 193, 195, 197,
+			198, 199, 206, 210, 214, 218, 220, 222,
+			225, 230, 238, 242, 246, 250, 252, 254,
+		}[random() % 88];
+//	}
 	l.dir = (enum direction[]){ UP, DOWN, LEFT, RIGHT }[rand() % 4];
 	switch(life1d_args(argc - 1, argv + 1, &root, &l.dir, &lr)) {
 	case -1:
@@ -227,13 +271,14 @@ int main(int argc, char *argv[]) {
 		life1d_seed(&l);
 	time_stat_start(&t);
 	do {
-		switch(life1d_step(&l, *lr)) {
-		case -1:
-			running = false;
-			break;
-		case 0:
-			t.numframes++;
-		}
+		for(i = 0; i < 100 && running; i++)
+			switch(life1d_step(&l, *lr)) {
+			case -1:
+				running = false;
+				break;
+			case 0:
+				t.numframes++;
+			}
 	} while(keypressed(&l.x) == 0 && running == true);
 	time_stat_end(&t);
 	time_stat_status(&t);
