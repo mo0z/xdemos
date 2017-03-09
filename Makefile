@@ -1,17 +1,7 @@
 
-CFLAGS += -D_DEFAULT_SOURCE $(PROD_CFLAGS)
-LDFLAGS += $(PROD_LDFLAGS)
-LDLIBS += -lX11 -lbulk77i
+all: xbp1
 
-all: xrootgen life2d life1d
+xbp1:
+	$(MAKE) $(MAKEFLAGS) -C xbp1/
 
-xrootgen: xrootgen.o animations.o
-life2d: life2d.o time_stat.o xbp.o
-life1d: life1d.o time_stat.o xbp.o
-
-clean: xrootgen xrootgen.o animations.o life2d life2d.o xbp.o
-	$(RM) $> $^
-
-include global.mk
-
-.PHONY: all clean
+.PHONY: xbp1
