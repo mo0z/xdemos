@@ -7,3 +7,9 @@ xbp1/time_stat.o
 xbp1/xbp.o
 xbp1/xrootgen
 xbp1/xrootgen.o
+xbp2/demo.o
+xbp2/metaballs
+xbp2/metaballs.o
+xbp2/parallax
+xbp2/parallax.o
+xbp2/xbp.o
