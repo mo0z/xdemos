@@ -1,7 +1,14 @@
 
-all: xbp1
+DIRS = xbp1 xbp2
 
-xbp1:
-	$(MAKE) $(MAKEFLAGS) -C xbp1/
+all: $(DIRS)
 
-.PHONY: xbp1
+$(DIRS):
+	$(MAKE) $(MAKEFLAGS) -C $@/
+
+clean:
+	for dir in $(DIRS); do \
+		$(MAKE) $(MAKEFLAGS) $@ -C "$$dir"; \
+	done
+
+.PHONY: $(DIRS) clean

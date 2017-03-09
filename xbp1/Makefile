@@ -9,7 +9,7 @@ xrootgen: xrootgen.o animations.o
 life2d: life2d.o time_stat.o xbp.o
 life1d: life1d.o time_stat.o xbp.o
 
-clean: xrootgen xrootgen.o animations.o life2d life2d.o xbp.o
+clean: xrootgen xrootgen.o animations.o life1d life1d.o life2d life2d.o xbp.o
 	$(RM) $> $^
 
 include ../global.mk
