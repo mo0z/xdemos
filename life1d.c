@@ -103,8 +103,8 @@ static int life1d_init(struct life1d *l, bool root) {
 		xbp_getfullscreenwin(&l->x, &l->w);
 		xbp_cursorinvisible(&l->x, &l->w);
 	}
-	l->p = XCreatePixmap(l->x.disp, l->w.win,
-	  WIDTH(l), HEIGHT(l), l->w.attr.depth);
+	l->p = XCreatePixmap(l->x.disp, l->w.win, WIDTH(l), HEIGHT(l),
+	                     l->w.attr.depth);
 	l->vert = l->dir == UP || l->dir == DOWN;
 	if(l->vert) {
 		l->pixels = WIDTH(l);
