@@ -1,5 +1,5 @@
 
-DIRS = xbp1 xbp2
+DIRS = xbp1 xbp2 third_party
 
 all: $(DIRS)
 

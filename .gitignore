@@ -1,3 +1,9 @@
+third_party/betteros_dri
+third_party/betteros_dri.o
+third_party/betteros_x11
+third_party/betteros_x11.o
+third_party/opengl
+third_party/opengl.o
 xbp1/animations.o
 xbp1/life1d
 xbp1/life1d.o
