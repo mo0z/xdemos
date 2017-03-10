@@ -9,8 +9,10 @@ parallax: parallax.o demo.o xbp.o
 
 metaballs: metaballs.o demo.o xbp.o
 
-clean: parallax parallax.o demo.o xbp.o metaballs metaballs.o
-	$(RM) $> $^
+clean:
+	for file in parallax parallax.o demo.o xbp.o metaballs metaballs.o; do \
+		[[ -e "$$file" ]] && rm "$$file"; \
+	done || true
 
 include ../global.mk
 
