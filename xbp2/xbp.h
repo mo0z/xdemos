@@ -10,8 +10,6 @@
 #ifndef XBP_H
 #define XBP_H
 
-#include <stdint.h>
-#include <bulk77i/bulk.h>
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 
@@ -22,7 +20,6 @@ struct xbp {
 	int scr;
 	XVisualInfo vinfo;
 	Colormap cmap;
-	struct bulk cleanup;
 };
 
 struct xbp_win {

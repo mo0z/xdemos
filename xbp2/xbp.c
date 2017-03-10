@@ -12,27 +12,6 @@
 #include <stdio.h>
 #include <X11/Xatom.h>
 
-#define MAX_CLEANUP 32
-
-struct xbp_cleanup {
-	void (*func)(struct xbp*, void*);
-	void *data;
-};
-
-void xbp_cleanup_pixmap(struct xbp *x, void *p) {
-	XFreePixmap(x->disp, *(Pixmap*)p);
-}
-
-void xbp_cleanup_free(struct xbp *x, void *p) {
-	free(p);
-	(void)x;
-}
-
-int xbp_cleanup_add(struct xbp *x,
-  void (*func)(struct xbp*, void*), void *data) {
-	return bulk_push(&x->cleanup, &(struct xbp_cleanup){ func, data });
-}
-
 int xbp_connect(struct xbp *x, char *display_name) {
 	if(x == NULL)
 		return -1;
@@ -48,7 +27,6 @@ int xbp_connect(struct xbp *x, char *display_name) {
 	}
 	x->cmap = XCreateColormap(x->disp, RootWindow(x->disp, x->scr),
 	                          x->vinfo.visual, AllocNone);
-	bulk_init(&x->cleanup, sizeof(struct xbp_cleanup), 16);
 	return 0;
 }
 
@@ -136,14 +114,7 @@ void xbp_destroywin(struct xbp *x, struct xbp_win *w) {
 }
 
 void xbp_disconnect(struct xbp *x) {
-	size_t i;
-	struct xbp_cleanup *p;
 	if(x == NULL)
 		return;
-	for(i = 0; i < x->cleanup.len; i++) {
-		p = (struct xbp_cleanup*)BULK_ITEMP(&x->cleanup, i);
-		p->func(x, p->data);
-	}
-	bulk_cleanup(&x->cleanup);
 	XCloseDisplay(x->disp);
 }
