@@ -4,6 +4,8 @@ third_party/betteros_x11
 third_party/betteros_x11.o
 third_party/opengl
 third_party/opengl.o
+third_party/sofb
+third_party/sofb.o
 xbp1/animations.o
 xbp1/life1d
 xbp1/life1d.o
