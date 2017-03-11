@@ -68,7 +68,7 @@ static inline struct timespec timespec_add(struct timespec ts1,
 
 static inline int metaballs_dist(int width, struct metaballs *m, int x, int y) {
 	register int a, b;
-	size_t i;
+	register size_t i;
 	float dist = 0;
 	for(i = 0; i < NUM_BALLS; i++) {
 		a = x - m->balls[i].x;
