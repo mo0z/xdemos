@@ -31,6 +31,7 @@ struct metaballs {
 		int radius;
 		int x, y;
 		int speed_x, speed_y;
+		float *dist_cache;
 	} balls[NUM_BALLS];
 	float *dist_cache;
 	uint32_t rgb_cache[256];
@@ -69,12 +70,11 @@ static inline struct timespec timespec_add(struct timespec ts1,
 static inline int metaballs_dist(int width, struct metaballs *m, int x, int y) {
 	register int a, b;
 	register size_t i;
-	float dist = 0;
+	register float dist = 0;
 	for(i = 0; i < NUM_BALLS; i++) {
 		a = x - m->balls[i].x;
 		b = y - m->balls[i].y;
-		// argh. still not fast enough...
-		dist += m->dist_cache[ABS(a) + ABS(b) * width] * m->balls[i].radius;
+		dist += m->balls[i].dist_cache[ABS(a) + ABS(b) * width];
 	}
 	if(dist < 0 || dist > MAX_DIST)
 		return 0;
@@ -204,19 +204,21 @@ int main(void) {
 		.total_runtime = { 0, 0 },
 		.num_frames = 0,
 	};
-	size_t i, l;
+	register size_t i, j, l;
 	int ret = EXIT_SUCCESS;
 	float fx, fy, rgb[3] = { 0.0, 0.0, 0.0 };
 	srand(time(NULL));
 	if(xbp_init(&x, NULL) < 0)
 		return EXIT_FAILURE;
-	m.dist_cache = malloc(x.attr.width * x.attr.height
-	                      * sizeof *m.dist_cache);
+	m.dist_cache = malloc(
+		x.attr.width * x.attr.height * sizeof *m.dist_cache * NUM_BALLS
+	);
 	if(m.dist_cache == NULL) {
 		perror("malloc");
 		ret = EXIT_FAILURE;
 		goto error;
 	}
+	m.dist_cache[0] = (float)INT_MAX;
 	for(i = 0; i < 256; i++) {
 		hsv_to_rgb(rgb, i / 255.0, 1.0, .8);
 		m.rgb_cache[i] = ((0xff << 24)
@@ -226,18 +228,20 @@ int main(void) {
 		);
 	}
 	l = x.attr.width * x.attr.height;
-	m.dist_cache[0] = (float)INT_MAX;
-	for(i = 1; i < l; i++) {
-		fx = i % x.attr.width;
-		fy = i / x.attr.height;
-		m.dist_cache[i] = rsqrt(fx * fx + fy * fy) * DIST_MULT;
-	}
 	for(i = 0; i < NUM_BALLS; i++) {
+		m.balls[i].dist_cache = m.dist_cache + l * i;
 		m.balls[i].radius = RADIUS_LOW + random() % (RADIUS_HIGH - RADIUS_LOW);
 		m.balls[i].x = random() % x.attr.width;
 		m.balls[i].y = random() % x.attr.height;
 		m.balls[i].speed_x = random() % (2 * MAX_SPEED) - MAX_SPEED;
 		m.balls[i].speed_y = random() % (2 * MAX_SPEED) - MAX_SPEED;
+	}
+	for(i = 1; i < l; i++) {
+		fx = i % x.attr.width;
+		fy = i / x.attr.height;
+		for(j = 0; j < NUM_BALLS; j++)
+			m.balls[j].dist_cache[i] = rsqrt(fx * fx + fy * fy)
+			                         * DIST_MULT * m.balls[j].radius;
 	}
 	if(clock_gettime(CLOCK_MONOTONIC, &m.total_runtime) < 0) {
 		XBP_ERRPRINT("Error: clock_gettime");
