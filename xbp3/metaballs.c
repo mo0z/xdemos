@@ -31,7 +31,6 @@ struct metaballs {
 		int radius;
 		int x, y;
 		int speed_x, speed_y;
-		float *dist_cache;
 	} balls[NUM_BALLS];
 	float *dist_cache;
 	uint32_t rgb_cache[256];
@@ -74,7 +73,7 @@ static inline int metaballs_dist(int width, struct metaballs *m, int x, int y) {
 	for(i = 0; i < NUM_BALLS; i++) {
 		a = x - m->balls[i].x;
 		b = y - m->balls[i].y;
-		dist += m->balls[i].dist_cache[ABS(a) + ABS(b) * width];
+		dist += m->dist_cache[ABS(a) + ABS(b) * width] * m->balls[i].radius;
 	}
 	if(dist < 0 || dist > MAX_DIST)
 		return 0;
@@ -204,7 +203,7 @@ int main(void) {
 		.total_runtime = { 0, 0 },
 		.num_frames = 0,
 	};
-	register size_t i, j, l;
+	register size_t i, l;
 	int ret = EXIT_SUCCESS;
 	float fx, fy, rgb[3] = { 0.0, 0.0, 0.0 };
 	srand(time(NULL));
@@ -229,7 +228,6 @@ int main(void) {
 	}
 	l = x.attr.width * x.attr.height;
 	for(i = 0; i < NUM_BALLS; i++) {
-		m.balls[i].dist_cache = m.dist_cache + l * i;
 		m.balls[i].radius = RADIUS_LOW + random() % (RADIUS_HIGH - RADIUS_LOW);
 		m.balls[i].x = random() % x.attr.width;
 		m.balls[i].y = random() % x.attr.height;
@@ -239,9 +237,7 @@ int main(void) {
 	for(i = 1; i < l; i++) {
 		fx = i % x.attr.width;
 		fy = i / x.attr.height;
-		for(j = 0; j < NUM_BALLS; j++)
-			m.balls[j].dist_cache[i] = rsqrt(fx * fx + fy * fy)
-			                         * DIST_MULT * m.balls[j].radius;
+		m.dist_cache[i] = rsqrt(fx * fx + fy * fy) * DIST_MULT;
 	}
 	if(clock_gettime(CLOCK_MONOTONIC, &m.total_runtime) < 0) {
 		XBP_ERRPRINT("Error: clock_gettime");
