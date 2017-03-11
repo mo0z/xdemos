@@ -75,6 +75,8 @@ static inline int metaballs_dist(struct metaballs *m, int x, int y) {
 		b = y - m->balls[i].y;
 		dist += m->dist_cache[ABS(a) + ABS(b)] * m->balls[i].radius;
 	}
+	if(dist > 255)
+		return 255;
 	return dist;
 }
 
@@ -102,7 +104,7 @@ int update(struct xbp *x, void *data) {
 	for(py = 0; py < rows; py += x->attr.width)
 		for(px = 0; px < x->attr.width; px++)
 			((uint32_t*)x->data)[py + px] = m->rgb_cache[
-				metaballs_dist(m, px, py) & 0xff
+				metaballs_dist(m, px, py)
 			];
 	if(clock_gettime(CLOCK_MONOTONIC, &frame_end) < 0) {
 		XBP_ERRPRINT("Error: clock_gettime");
