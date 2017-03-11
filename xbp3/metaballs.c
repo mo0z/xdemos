@@ -1,5 +1,5 @@
 
-/* xbp_test.c
+/* metaballs.c
  *
  * Copyright (c) 2017, mar77i <mysatyre at gmail dot com>
  *
