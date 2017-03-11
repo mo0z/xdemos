@@ -220,11 +220,10 @@ int main(void) {
 	m.dist_cache[0] = (float)INT_MAX;
 	for(i = 0; i < 256; i++) {
 		hsv_to_rgb(rgb, i / 255.0, 1.0, .8);
-		m.rgb_cache[i] = ((0xff << 24)
-			| ((((int)(rgb[0] * 255)) & 0xff) <<  0)
-			| ((((int)(rgb[1] * 255)) & 0xff) <<  8)
-			| ((((int)(rgb[2] * 255)) & 0xff) << 16)
-		);
+		((unsigned char*)m.rgb_cache)[4 * i + 0] = rgb[0] * 255;
+		((unsigned char*)m.rgb_cache)[4 * i + 1] = rgb[1] * 255;
+		((unsigned char*)m.rgb_cache)[4 * i + 2] = rgb[2] * 255;
+		((unsigned char*)m.rgb_cache)[4 * i + 3] =          255;
 	}
 	l = x.attr.width * x.attr.height;
 	for(i = 0; i < NUM_BALLS; i++) {
