@@ -28,7 +28,7 @@
 
 struct metaballs {
 	struct {
-		int radius;
+		float radius;
 		int x, y;
 		int speed_x, speed_y;
 	} balls[NUM_BALLS];
@@ -66,23 +66,22 @@ static inline struct timespec timespec_add(struct timespec ts1,
 
 #define ABS(x) ((x) < 0 ? -(x) : (x))
 
-static inline int metaballs_dist(int width, struct metaballs *m, int x, int y) {
+static inline int metaballs_dist(struct metaballs *m, int x, int y) {
 	register int a, b;
 	register size_t i;
 	register float dist = 0;
 	for(i = 0; i < NUM_BALLS; i++) {
 		a = x - m->balls[i].x;
 		b = y - m->balls[i].y;
-		dist += m->dist_cache[ABS(a) + ABS(b) * width] * m->balls[i].radius;
+		dist += m->dist_cache[ABS(a) + ABS(b)] * m->balls[i].radius;
 	}
-	if(dist < 0 || dist > MAX_DIST)
-		return 0;
-	return dist / NUM_BALLS;
+	return dist;
 }
 
 int update(struct xbp *x, void *data) {
 	register struct metaballs *m = data;
-	register size_t i, px, py, row;
+	register size_t i;
+	register int px, py, rows = x->attr.width * x->attr.height;
 	struct timespec frame_start, frame_end;
 	if(clock_gettime(CLOCK_MONOTONIC, &frame_start) < 0) {
 		XBP_ERRPRINT("Error: clock_gettime");
@@ -94,19 +93,17 @@ int update(struct xbp *x, void *data) {
 			m->balls[i].speed_x *= -1;
 			m->balls[i].x += m->balls[i].speed_x * 2;
 		}
-		m->balls[i].y += m->balls[i].speed_y;
-		if(m->balls[i].y < 0 || m->balls[i].y >= x->attr.height) {
+		m->balls[i].y += m->balls[i].speed_y * x->attr.width;
+		if(m->balls[i].y < 0 || m->balls[i].y >= rows) {
 			m->balls[i].speed_y *= -1;
-			m->balls[i].y += m->balls[i].speed_y * 2;
+			m->balls[i].y += m->balls[i].speed_y * x->attr.width * 2;
 		}
 	}
-	for(py = 0; py < (size_t)x->attr.height; py++) {
-		row = py * x->attr.width;
-		for(px = 0; px < (size_t)x->attr.width; px++)
-			((uint32_t*)x->data)[row + px] = m->rgb_cache[
-				LIMIT(metaballs_dist(x->attr.width, m, px, py), 255)
+	for(py = 0; py < rows; py += x->attr.width)
+		for(px = 0; px < x->attr.width; px++)
+			((uint32_t*)x->data)[py + px] = m->rgb_cache[
+				metaballs_dist(m, px, py) & 0xff
 			];
-	}
 	if(clock_gettime(CLOCK_MONOTONIC, &frame_end) < 0) {
 		XBP_ERRPRINT("Error: clock_gettime");
 		return -1;
@@ -227,9 +224,11 @@ int main(void) {
 	}
 	l = x.attr.width * x.attr.height;
 	for(i = 0; i < NUM_BALLS; i++) {
-		m.balls[i].radius = RADIUS_LOW + random() % (RADIUS_HIGH - RADIUS_LOW);
+		m.balls[i].radius = (float)(
+			RADIUS_LOW + random() % (RADIUS_HIGH - RADIUS_LOW)
+		) / NUM_BALLS;
 		m.balls[i].x = random() % x.attr.width;
-		m.balls[i].y = random() % x.attr.height;
+		m.balls[i].y = (random() % x.attr.height) * x.attr.width;
 		m.balls[i].speed_x = random() % (2 * MAX_SPEED) - MAX_SPEED;
 		m.balls[i].speed_y = random() % (2 * MAX_SPEED) - MAX_SPEED;
 	}
