@@ -63,15 +63,19 @@ static inline struct timespec timespec_add(struct timespec ts1,
 	return result;
 }
 
+// from the Bit Twiddling Hacks article by Sean E. Anderson
+#define ABS_RSH(x) ((x) >> (CHAR_BIT * sizeof(x) - 1))
+#define ABS(x) (((x) + ABS_RSH(x)) ^ ABS_RSH(x))
+
 static inline int metaballs_dist(int width, struct metaballs *m, int x, int y) {
-	float dist = 0;
+	register int a, b;
 	size_t i;
+	float dist = 0;
 	for(i = 0; i < NUM_BALLS; i++) {
-		dist += m->dist_cache[
-			abs(x - m->balls[i].x) + abs(y - m->balls[i].y) * width
-		] * m->balls[i].radius;
-		if(dist > 255 * NUM_BALLS)
-			return 255;
+		a = x - m->balls[i].x;
+		b = y - m->balls[i].y;
+		// argh. still not fast enough...
+		dist += m->dist_cache[ABS(a) + ABS(b) * width] * m->balls[i].radius;
 	}
 	if(dist < 0 || dist > MAX_DIST)
 		return 0;
@@ -80,8 +84,7 @@ static inline int metaballs_dist(int width, struct metaballs *m, int x, int y) {
 
 int update(struct xbp *x, void *data) {
 	register struct metaballs *m = data;
-	register size_t scr_size = x->attr.width * x->attr.height, i;
-	register unsigned char dist;
+	register size_t i, px, py, row;
 	struct timespec frame_start, frame_end;
 	if(clock_gettime(CLOCK_MONOTONIC, &frame_start) < 0) {
 		XBP_ERRPRINT("Error: clock_gettime");
@@ -99,13 +102,14 @@ int update(struct xbp *x, void *data) {
 			m->balls[i].y += m->balls[i].speed_y * 2;
 		}
 	}
-	for(i = 0; i < scr_size; i++) {
-		dist = LIMIT(metaballs_dist(
-			x->attr.width, m, i % x->attr.width, i / x->attr.width
-		), 255);
-		x->data[4 * i + 0] = m->rgb_cache[3 * dist + 0];
-		x->data[4 * i + 1] = m->rgb_cache[3 * dist + 1];
-		x->data[4 * i + 2] = m->rgb_cache[3 * dist + 2];
+	for(py = 0; py < (size_t)x->attr.height; py++) {
+		row = py * x->attr.width;
+		for(px = 0; px < (size_t)x->attr.width; px++) {
+			memcpy(x->data + 4 * (row + px),
+			    m->rgb_cache + 3 * LIMIT(metaballs_dist(
+			         x->attr.width, m, px, py
+			), 255), 3);
+		}
 	}
 	if(clock_gettime(CLOCK_MONOTONIC, &frame_end) < 0) {
 		XBP_ERRPRINT("Error: clock_gettime");
@@ -228,8 +232,9 @@ int main(void) {
 		fx = i % x.attr.width;
 		fy = i / x.attr.height;
 		m.dist_cache[i] = rsqrt(fx * fx + fy * fy) * DIST_MULT;
-		((unsigned char*)x.data)[4 * i + 3] = 255;
 	}
+	for(i = 0; i < l; i++)
+		((unsigned char*)x.data)[4 * i + 3] = 255;
 	for(i = 0; i < NUM_BALLS; i++) {
 		m.balls[i].radius = RADIUS_LOW + random() % (RADIUS_HIGH - RADIUS_LOW);
 		m.balls[i].x = random() % x.attr.width;
