@@ -63,9 +63,7 @@ static inline struct timespec timespec_add(struct timespec ts1,
 	return result;
 }
 
-// from the Bit Twiddling Hacks article by Sean E. Anderson
-#define ABS_RSH(x) ((x) >> (CHAR_BIT * sizeof(x) - 1))
-#define ABS(x) (((x) + ABS_RSH(x)) ^ ABS_RSH(x))
+#define ABS(x) ((x) < 0 ? -(x) : (x))
 
 static inline int metaballs_dist(int width, struct metaballs *m, int x, int y) {
 	register int a, b;
