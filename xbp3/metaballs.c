@@ -10,6 +10,7 @@
 #include <limits.h>
 #include <math.h>
 #include <stdio.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
@@ -32,7 +33,7 @@ struct metaballs {
 		int speed_x, speed_y;
 	} balls[NUM_BALLS];
 	float *dist_cache;
-	unsigned char rgb_cache[256 * 3];
+	uint32_t rgb_cache[256];
 	struct timespec total_frametime, total_runtime;
 	size_t num_frames;
 };
@@ -102,12 +103,10 @@ int update(struct xbp *x, void *data) {
 	}
 	for(py = 0; py < (size_t)x->attr.height; py++) {
 		row = py * x->attr.width;
-		for(px = 0; px < (size_t)x->attr.width; px++) {
-			memcpy(x->data + 4 * (row + px),
-			    m->rgb_cache + 3 * LIMIT(metaballs_dist(
-			         x->attr.width, m, px, py
-			), 255), 3);
-		}
+		for(px = 0; px < (size_t)x->attr.width; px++)
+			((uint32_t*)x->data)[row + px] = m->rgb_cache[
+				LIMIT(metaballs_dist(x->attr.width, m, px, py), 255)
+			];
 	}
 	if(clock_gettime(CLOCK_MONOTONIC, &frame_end) < 0) {
 		XBP_ERRPRINT("Error: clock_gettime");
@@ -220,9 +219,11 @@ int main(void) {
 	}
 	for(i = 0; i < 256; i++) {
 		hsv_to_rgb(rgb, i / 255.0, 1.0, .8);
-		m.rgb_cache[3 * i + 0] = LIMIT((int)(rgb[0] * 255), 255);
-		m.rgb_cache[3 * i + 1] = LIMIT((int)(rgb[1] * 255), 255);
-		m.rgb_cache[3 * i + 2] = LIMIT((int)(rgb[2] * 255), 255);
+		m.rgb_cache[i] = ((0xff << 24)
+			| ((((int)(rgb[0] * 255)) & 0xff) <<  0)
+			| ((((int)(rgb[1] * 255)) & 0xff) <<  8)
+			| ((((int)(rgb[2] * 255)) & 0xff) << 16)
+		);
 	}
 	l = x.attr.width * x.attr.height;
 	m.dist_cache[0] = (float)INT_MAX;
@@ -231,8 +232,6 @@ int main(void) {
 		fy = i / x.attr.height;
 		m.dist_cache[i] = rsqrt(fx * fx + fy * fy) * DIST_MULT;
 	}
-	for(i = 0; i < l; i++)
-		((unsigned char*)x.data)[4 * i + 3] = 255;
 	for(i = 0; i < NUM_BALLS; i++) {
 		m.balls[i].radius = RADIUS_LOW + random() % (RADIUS_HIGH - RADIUS_LOW);
 		m.balls[i].x = random() % x.attr.width;
