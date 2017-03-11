@@ -52,8 +52,8 @@ static inline struct timespec timespec_add(struct timespec ts1,
 	result.tv_sec += ts2.tv_sec;
 
 	if(result.tv_nsec >= BILLION) {
-		result.tv_nsec %= BILLION;
 		result.tv_sec += result.tv_nsec / BILLION;
+		result.tv_nsec %= BILLION;
 	}
 	if(result.tv_nsec < 0) {
 		sec = 1 + -(result.tv_nsec / BILLION);
