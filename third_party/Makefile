@@ -1,6 +1,6 @@
 
 CFLAGS += -D_DEFAULT_SOURCE
-LDFLAGS += -lGL -lGLU -lX11
+LDLIBS += -lGL -lGLU -lX11
 
 all: opengl betteros_dri betteros_x11 sofb
 
