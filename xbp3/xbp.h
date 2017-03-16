@@ -41,7 +41,8 @@ struct xbp {
 };
 
 int xbp_init(struct xbp *x, const char *display_name);
-int xbp_main(struct xbp *x, int (*cb)(struct xbp*, void*), void *data);
+int xbp_main(struct xbp *x, int (*cb)(struct xbp*, void*),
+             void (*action)(void*), void *data);
 void xbp_cleanup(struct xbp *x);
 
 #endif // XBP_H

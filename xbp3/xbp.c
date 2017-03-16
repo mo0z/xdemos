@@ -24,9 +24,9 @@ static inline int xbp_initimage(struct xbp *x) {
 		perror("malloc");
 		return -1;
 	}
-	x->img = XCreateImage(x->disp, x->vinfo.visual, x->vinfo.depth, ZPixmap,
-	         0, x->data, x->attr.width, x->attr.height, 4 * CHAR_BIT,
-	         4 * x->attr.width);
+	x->img = XCreateImage(x->disp, x->vinfo.visual, x->vinfo.depth,
+	         ZPixmap, 0, x->data, x->attr.width, x->attr.height,
+	         4 * CHAR_BIT, 4 * x->attr.width);
 	x->init++;
 	return 0;
 }
@@ -91,24 +91,29 @@ error:
 	return -1;
 }
 
-static inline int xbp_keypress(struct xbp *x, XEvent *ev) {
+static inline int xbp_keypress(struct xbp *x, XEvent *ev,
+                               void (*action)(void*), void *data) {
 	KeySym keysym = XkbKeycodeToKeysym(x->disp, ev->xkey.keycode, 0, 0);
 	if(keysym == XK_q || keysym == XK_Escape)
 		x->running = false;
+	if(keysym == XK_space)
+		action(data);
 	return 0;
 }
 
-static inline int xbp_handle(struct xbp *x) {
+static inline int xbp_handle(struct xbp *x,
+                             void (*action)(void*), void *data) {
 	XEvent ev;
 	while(XPending(x->disp) > 0) {
 		XNextEvent(x->disp, &ev);
-		if(ev.type == KeyPress && xbp_keypress(x, &ev))
+		if(ev.type == KeyPress && xbp_keypress(x, &ev, action, data))
 			return -1;
 	}
 	return 0;
 }
 
-int xbp_main(struct xbp *x, int (*cb)(struct xbp*, void*), void *data) {
+int xbp_main(struct xbp *x, int (*cb)(struct xbp*, void*),
+             void (*action)(void*), void *data) {
 	XGrabKeyboard(x->disp, x->win, 0, GrabModeAsync, GrabModeAsync,
 	              CurrentTime);
 	x->running = True;
@@ -117,7 +122,7 @@ int xbp_main(struct xbp *x, int (*cb)(struct xbp*, void*), void *data) {
 		XPutImage(x->disp, x->win, x->gc, x->img,
 		          0, 0, 0, 0, x->attr.width, x->attr.height);
 		XSync(x->disp, False);
-		if(xbp_handle(x) < 0)
+		if(xbp_handle(x, action, data) < 0)
 			return -1;
 	}
 	XUngrabKeyboard(x->disp, CurrentTime);

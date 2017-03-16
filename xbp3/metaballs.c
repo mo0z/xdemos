@@ -19,11 +19,11 @@
 
 #define BILLION (1000 * 1000 * 1000)
 #define LIMIT(x, l) (((x) > (l)) ? (l) : (x))
-#define DIST_MULT (x.attr.width)
+#define DIST_MULT(w) (w)
 #define NUM_BALLS 10
-#define RADIUS_LOW  (x.attr.width / 40)
-#define RADIUS_HIGH (x.attr.width / 16)
-#define MAX_SPEED (x.attr.width / 40)
+#define RADIUS_LOW(w)  ((w) / 40)
+#define RADIUS_HIGH(w) ((w) / 16)
+#define MAX_SPEED(w) (w / 80)
 #define MAX_DIST (256.0 * NUM_BALLS)
 
 struct metaballs {
@@ -35,7 +35,7 @@ struct metaballs {
 	float *dist_cache;
 	uint32_t rgb_cache[256];
 	struct timespec total_frametime, total_runtime;
-	size_t num_frames;
+	size_t num_frames, height, width;
 };
 
 #define timespec_diff(ts1, ts2) ( \
@@ -80,43 +80,8 @@ static inline int metaballs_dist(struct metaballs *m, int x, int y) {
 	return dist;
 }
 
-int update(struct xbp *x, void *data) {
-	register struct metaballs *m = data;
-	register size_t i;
-	register int px, py, rows = x->attr.width * x->attr.height;
-	struct timespec frame_start, frame_end;
-	if(clock_gettime(CLOCK_MONOTONIC, &frame_start) < 0) {
-		XBP_ERRPRINT("Error: clock_gettime");
-		return -1;
-	}
-	for(i = 0; i < NUM_BALLS; i++) {
-		m->balls[i].x += m->balls[i].speed_x;
-		if(m->balls[i].x < 0 || m->balls[i].x >= x->attr.width) {
-			m->balls[i].speed_x *= -1;
-			m->balls[i].x += m->balls[i].speed_x * 2;
-		}
-		m->balls[i].y += m->balls[i].speed_y * x->attr.width;
-		if(m->balls[i].y < 0 || m->balls[i].y >= rows) {
-			m->balls[i].speed_y *= -1;
-			m->balls[i].y += m->balls[i].speed_y * x->attr.width * 2;
-		}
-	}
-	for(py = 0; py < rows; py += x->attr.width)
-		for(px = 0; px < x->attr.width; px++)
-			((uint32_t*)x->data)[py + px] = m->rgb_cache[
-				metaballs_dist(m, px, py)
-			];
-	if(clock_gettime(CLOCK_MONOTONIC, &frame_end) < 0) {
-		XBP_ERRPRINT("Error: clock_gettime");
-		return -1;
-	}
-	frame_end = timespec_diff(frame_end, frame_start);
-	m->total_frametime = timespec_add(m->total_frametime, frame_end);
-	m->num_frames++;
-	return 0;
-}
-
-static inline void hsv_to_rgb(float result[], float h, float s, float v) {
+static inline void hsv_to_rgb(float result[],
+                              float h, float s, float v) {
 	float i, f, p, q, t;
 	if(s == 0) {
 		result[0] = v;
@@ -177,6 +142,63 @@ static inline float rsqrt(float n) {
 	return n;
 }
 
+static inline void action(void *data) {
+	struct metaballs *m = data;
+	size_t i;
+	float rnd, mult, hue, rgb[3] = { 0.0, 0.0, 0.0 };
+	m->dist_cache[0] = (float)INT_MAX;
+	rnd = (float)rand() / RAND_MAX * 2.0;
+	mult = .25 + (float)rand() / RAND_MAX * 1.75;
+	for(i = 0; i < 256; i++) {
+		if(rnd > 1.0)
+			hue = (float)i / 255.0 - (rnd - 1.0);
+		else
+			hue = (float)i / 255.0 + rnd;
+		hue *= mult;
+		hsv_to_rgb(rgb, hue - floor(hue), 1.0, .8);
+		((unsigned char*)m->rgb_cache)[4 * i + 0] = rgb[0] * 255;
+		((unsigned char*)m->rgb_cache)[4 * i + 1] = rgb[1] * 255;
+		((unsigned char*)m->rgb_cache)[4 * i + 2] = rgb[2] * 255;
+		((unsigned char*)m->rgb_cache)[4 * i + 3] =          255;
+	}
+}
+
+int update(struct xbp *x, void *data) {
+	register struct metaballs *m = data;
+	register size_t i;
+	register int px, py, rows = x->attr.width * x->attr.height;
+	struct timespec frame_start, frame_end;
+	if(clock_gettime(CLOCK_MONOTONIC, &frame_start) < 0) {
+		XBP_ERRPRINT("Error: clock_gettime");
+		return -1;
+	}
+	for(i = 0; i < NUM_BALLS; i++) {
+		m->balls[i].x += m->balls[i].speed_x;
+		if(m->balls[i].x < 0 || m->balls[i].x >= x->attr.width) {
+			m->balls[i].speed_x *= -1;
+			m->balls[i].x += m->balls[i].speed_x * 2;
+		}
+		m->balls[i].y += m->balls[i].speed_y * x->attr.width;
+		if(m->balls[i].y < 0 || m->balls[i].y >= rows) {
+			m->balls[i].speed_y *= -1;
+			m->balls[i].y += m->balls[i].speed_y * x->attr.width * 2;
+		}
+	}
+	for(py = 0; py < rows; py += x->attr.width)
+		for(px = 0; px < x->attr.width; px++)
+			((uint32_t*)x->data)[py + px] = m->rgb_cache[
+				metaballs_dist(m, px, py)
+			];
+	if(clock_gettime(CLOCK_MONOTONIC, &frame_end) < 0) {
+		XBP_ERRPRINT("Error: clock_gettime");
+		return -1;
+	}
+	frame_end = timespec_diff(frame_end, frame_start);
+	m->total_frametime = timespec_add(m->total_frametime, frame_end);
+	m->num_frames++;
+	return 0;
+}
+
 static inline int print_stats(struct metaballs *m) {
 	struct timespec ts;
 	if(clock_gettime(CLOCK_MONOTONIC, &ts) < 0) {
@@ -202,12 +224,14 @@ int main(void) {
 		.total_runtime = { 0, 0 },
 		.num_frames = 0,
 	};
-	register size_t i, l;
-	int ret = EXIT_SUCCESS;
-	float fx, fy, rgb[3] = { 0.0, 0.0, 0.0 };
+	float fx, fy;
+	int speed_mod, ret = EXIT_SUCCESS;
+	size_t i, l;
 	srand(time(NULL));
 	if(xbp_init(&x, NULL) < 0)
 		return EXIT_FAILURE;
+	m.width = x.attr.width;
+	m.height = x.attr.height;
 	m.dist_cache = malloc(
 		x.attr.width * x.attr.height * sizeof *m.dist_cache * NUM_BALLS
 	);
@@ -216,34 +240,30 @@ int main(void) {
 		ret = EXIT_FAILURE;
 		goto error;
 	}
-	m.dist_cache[0] = (float)INT_MAX;
-	for(i = 0; i < 256; i++) {
-		hsv_to_rgb(rgb, i / 255.0, 1.0, .8);
-		((unsigned char*)m.rgb_cache)[4 * i + 0] = rgb[0] * 255;
-		((unsigned char*)m.rgb_cache)[4 * i + 1] = rgb[1] * 255;
-		((unsigned char*)m.rgb_cache)[4 * i + 2] = rgb[2] * 255;
-		((unsigned char*)m.rgb_cache)[4 * i + 3] =          255;
-	}
-	l = x.attr.width * x.attr.height;
+	speed_mod = (2 * MAX_SPEED(m.width)) - MAX_SPEED(m.width);
 	for(i = 0; i < NUM_BALLS; i++) {
 		m.balls[i].radius = (float)(
-			RADIUS_LOW + random() % (RADIUS_HIGH - RADIUS_LOW)
+			RADIUS_LOW(m.width) + random()
+			% (RADIUS_HIGH(m.width) - RADIUS_LOW(m.width))
 		) / NUM_BALLS;
-		m.balls[i].x = random() % x.attr.width;
-		m.balls[i].y = (random() % x.attr.height) * x.attr.width;
-		m.balls[i].speed_x = random() % (2 * MAX_SPEED) - MAX_SPEED;
-		m.balls[i].speed_y = random() % (2 * MAX_SPEED) - MAX_SPEED;
+		m.balls[i].x = random() % m.width;
+		m.balls[i].y = (random() % m.height) * m.width;
+		m.balls[i].speed_x = random() % speed_mod;
+		m.balls[i].speed_y = random() % speed_mod;
 	}
+	l = m.width * m.height;
 	for(i = 1; i < l; i++) {
-		fx = i % x.attr.width;
-		fy = i / x.attr.height;
-		m.dist_cache[i] = rsqrt(fx * fx + fy * fy) * DIST_MULT;
+		fx = i % m.width;
+		fy = i / m.height;
+		m.dist_cache[i] = rsqrt(fx * fx + fy * fy)
+		                 * DIST_MULT(m.width);
 	}
+	action(&m);
 	if(clock_gettime(CLOCK_MONOTONIC, &m.total_runtime) < 0) {
 		XBP_ERRPRINT("Error: clock_gettime");
 		goto error;
 	}
-	if(xbp_main(&x, update, &m) < 0 || print_stats(&m) < 0)
+	if(xbp_main(&x, update, action, &m) < 0 || print_stats(&m) < 0)
 		ret = EXIT_FAILURE;
 error:
 	free(m.dist_cache);
