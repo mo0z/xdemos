@@ -176,12 +176,12 @@ int update(struct xbp *x, void *data) {
 		m->balls[i].x += m->balls[i].speed_x;
 		if(m->balls[i].x < 0 || m->balls[i].x >= x->attr.width) {
 			m->balls[i].speed_x *= -1;
-			m->balls[i].x += m->balls[i].speed_x * 2;
+			m->balls[i].x += m->balls[i].speed_x;
 		}
 		m->balls[i].y += m->balls[i].speed_y * x->attr.width;
 		if(m->balls[i].y < 0 || m->balls[i].y >= rows) {
 			m->balls[i].speed_y *= -1;
-			m->balls[i].y += m->balls[i].speed_y * x->attr.width * 2;
+			m->balls[i].y += m->balls[i].speed_y * x->attr.width;
 		}
 	}
 	for(py = 0; py < rows; py += x->attr.width)
