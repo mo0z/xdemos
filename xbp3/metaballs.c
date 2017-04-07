@@ -225,7 +225,7 @@ int main(void) {
 		.num_frames = 0,
 	};
 	float fx, fy;
-	int speed_mod, ret = EXIT_SUCCESS;
+	int speed_mod, ret = EXIT_FAILURE;
 	size_t i, l;
 	srand(time(NULL));
 	if(xbp_init(&x, NULL) < 0)
@@ -237,7 +237,6 @@ int main(void) {
 	);
 	if(m.dist_cache == NULL) {
 		perror("malloc");
-		ret = EXIT_FAILURE;
 		goto error;
 	}
 	speed_mod = (2 * MAX_SPEED(m.width)) - MAX_SPEED(m.width);
@@ -263,8 +262,8 @@ int main(void) {
 		XBP_ERRPRINT("Error: clock_gettime");
 		goto error;
 	}
-	if(xbp_main(&x, update, action, &m) < 0 || print_stats(&m) < 0)
-		ret = EXIT_FAILURE;
+	if(xbp_main(&x, update, action, &m) == 0 && print_stats(&m) == 0)
+		ret = EXIT_SUCCESS;
 error:
 	free(m.dist_cache);
 	xbp_cleanup(&x);

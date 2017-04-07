@@ -15,7 +15,7 @@
 
 #include "xbp.h"
 
-#define BITS_PER_PIXEL 32
+#define BITS_PER_PIXEL (4 * CHAR_BIT)
 
 static inline int xbp_initimage(struct xbp *x) {
 	x->data = malloc(BITS_PER_PIXEL / CHAR_BIT
@@ -26,7 +26,7 @@ static inline int xbp_initimage(struct xbp *x) {
 	}
 	x->img = XCreateImage(x->disp, x->vinfo.visual, x->vinfo.depth,
 	         ZPixmap, 0, x->data, x->attr.width, x->attr.height,
-	         4 * CHAR_BIT, 4 * x->attr.width);
+	         BITS_PER_PIXEL, 4 * x->attr.width);
 	x->init++;
 	return 0;
 }
@@ -96,7 +96,7 @@ static inline int xbp_keypress(struct xbp *x, XEvent *ev,
 	KeySym keysym = XkbKeycodeToKeysym(x->disp, ev->xkey.keycode, 0, 0);
 	if(keysym == XK_q || keysym == XK_Escape)
 		x->running = false;
-	if(keysym == XK_space)
+	if(keysym == XK_space && action != NULL)
 		action(data);
 	return 0;
 }
