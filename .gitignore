@@ -24,3 +24,5 @@ xbp2/xbp.o
 xbp3/metaballs
 xbp3/metaballs.o
 xbp3/xbp.o
+xbp3/xor
+xbp3/xor.o

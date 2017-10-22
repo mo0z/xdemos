@@ -1,11 +1,14 @@
 
+# xbp3 makefile
+
 CFLAGS += -D_DEFAULT_SOURCE $(PROD_CFLAGS)
 LDFLAGS += $(PROD_LDFLAGS)
 LDLIBS += -lX11 -lm
 
-all: metaballs
+all: metaballs xor
 
 metaballs: metaballs.o xbp.o
+xor: xor.o xbp.o
 
 include ../global.mk
 

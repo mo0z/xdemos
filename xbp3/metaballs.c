@@ -8,13 +8,13 @@
  */
 
 #include <limits.h>
-#include <math.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
 
+#include "hsv.h"
 #include "xbp.h"
 
 #define BILLION (1000 * 1000 * 1000)
@@ -78,54 +78,6 @@ static inline int metaballs_dist(struct metaballs *m, int x, int y) {
 	if(dist > 255)
 		return 255;
 	return dist;
-}
-
-static inline void hsv_to_rgb(float result[],
-                              float h, float s, float v) {
-	float i, f, p, q, t;
-	if(s == 0) {
-		result[0] = v;
-		result[1] = v;
-		result[2] = v;
-		return;
-	}
-	i = floor(h * 6.0);
-	f = (h * 6.0) - i;
-	p = v * (1.0 - s);
-	q = v * (1.0 - s * f);
-	t = v * (1.0 - s * (1.0-f));
-	switch((int)i % 6) {
-	case 0:
-		result[0] = v;
-		result[1] = t;
-		result[2] = p;
-		return;
-	case 1:
-		result[0] = q;
-		result[1] = v;
-		result[2] = p;
-		return;
-	case 2:
-		result[0] = p;
-		result[1] = v;
-		result[2] = t;
-		return;
-	case 3:
-		result[0] = p;
-		result[1] = q;
-		result[2] = v;
-		return;
-	case 4:
-		result[0] = t;
-		result[1] = p;
-		result[2] = v;
-		return;
-	case 5:
-		result[0] = v;
-		result[1] = p;
-		result[2] = q;
-		return;
-	}
 }
 
 static inline float rsqrt(float n) {
