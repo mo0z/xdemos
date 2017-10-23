@@ -25,8 +25,7 @@ static inline int xbp_initimage(struct xbp *x) {
 		return -1;
 	}
 	x->img = XCreateImage(x->disp, x->vinfo.visual, x->vinfo.depth,
-	         ZPixmap, 0, x->data, x->attr.width, x->attr.height,
-	         BITS_PER_PIXEL, 4 * x->attr.width);
+	         ZPixmap, 0, x->data, x->attr.width, x->attr.height, 8, 0);
 	x->init++;
 	return 0;
 }
