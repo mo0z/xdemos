@@ -15,12 +15,12 @@ int update(struct xbp *x, void *data) {
 	int px, py;
 	OFFSET_TYPE *offset = data;
 	uint8_t xor_value;
-	for(py = 0; py < x->attr.height; py++)
-		for(px = 0; px < x->attr.width; px++) {
+	for(py = 0; py < x->img->height; py++)
+		for(px = 0; px < x->img->width; px++) {
 			xor_value = (px ^ py) + (*offset & 0xff);
 			hsv_to_rgb(rgb, (float)*offset / OFFSET_MAX, 1.0,
 			           (float)xor_value / 255);
-			((uint32_t*)x->data)[py * x->attr.width + px] = (
+			xbp_set_pixel(x->img, px, py,
 				(int)(rgb[0] * 0xff) | ((int)(rgb[1] * 0xff) << 8) |
 				((int)(rgb[2] * 0xff) << 16) | (0xff << 24)
 			);

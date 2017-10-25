@@ -10,6 +10,7 @@
 #ifndef XBP_H
 #define XBP_H
 
+#include <limits.h>
 #include <stdbool.h>
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
@@ -31,18 +32,30 @@ struct xbp {
 	Colormap cmap;
 
 	Window win;
-	XWindowAttributes attr;
 	GC gc;
 
-	char *data;
 	XImage *img;
 	char init;
 	bool running;
+	struct xbp_sizehint {
+		int width, height;
+	} *sizehint;
 };
 
 int xbp_init(struct xbp *x, const char *display_name);
 int xbp_main(struct xbp *x, int (*cb)(struct xbp*, void*),
-             void (*action)(void*), void *data);
+             void (*action)(void*), int (*resize)(struct xbp*, void*),
+             void *data);
+static inline void xbp_set_pixel(XImage *img, int x, int y,
+                                 unsigned long color) {
+	int i, px;
+	if(x < 0 || x > img->width || y < 0 || y > img->height)
+		return;
+	px = img->bytes_per_line * y + x * img->bits_per_pixel / CHAR_BIT;
+	for(i = 0; i < img->bits_per_pixel / CHAR_BIT; i++)
+		img->data[px + i] = color >> (8 * i);
+}
+
 void xbp_cleanup(struct xbp *x);
 
 #endif // XBP_H

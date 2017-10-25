@@ -7,7 +7,6 @@
  * of the ISC license.  See the LICENSE file for details.
  */
 
-#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <X11/Xatom.h>
@@ -15,50 +14,63 @@
 
 #include "xbp.h"
 
-#define BITS_PER_PIXEL (4 * CHAR_BIT)
-
 static inline int xbp_initimage(struct xbp *x) {
-	x->data = malloc(BITS_PER_PIXEL / CHAR_BIT
-	                 * x->attr.width * x->attr.height);
-	if(x->data == NULL) {
-		perror("malloc");
+	XWindowAttributes attr;
+	if(XGetWindowAttributes(x->disp, x->win, &attr) == 0) {
+		XBP_ERRPRINT("Error: XGetWindowAttributes failed");
 		return -1;
 	}
 	x->img = XCreateImage(x->disp, x->vinfo.visual, x->vinfo.depth,
-	         ZPixmap, 0, x->data, x->attr.width, x->attr.height, 8, 0);
+	         ZPixmap, 0, NULL, attr.width, attr.height, 8, 0);
+	x->img->data = malloc(x->img->bits_per_pixel / CHAR_BIT *
+	                      x->img->width * x->img->height);
+	if(x->img->data == NULL) {
+		perror("malloc");
+		XDestroyImage(x->img);
+		return -1;
+	}
 	x->init++;
 	return 0;
 }
 
 static inline int xbp_initwindow(struct xbp *x, Window *root) {
 	XWindowAttributes root_attr;
+	int width = 0, height = 0;
+	Bool override_redirect = True;
 	if(XGetWindowAttributes(x->disp, *root, &root_attr) == 0) {
 		XBP_ERRPRINT("XGetWindowAttributes failed");
 		return -1;
 	}
+	if(x->sizehint != NULL) {
+		width = x->sizehint->width;
+		height = x->sizehint->height;
+	}
+	if(width <= 0 || width > root_attr.width)
+		width = root_attr.width;
+	if(height <= 0 || height > root_attr.height)
+		height = root_attr.height;
+	override_redirect = width == root_attr.width && height == root_attr.height;
 	x->win = XCreateWindow(x->disp, *root,
-		0, 0, root_attr.width, root_attr.height,
+		0, 0, width, height,
 		0, x->vinfo.depth, InputOutput, x->vinfo.visual,
 		CWBackPixel | CWColormap | CWBorderPixel | CWOverrideRedirect,
 		&(XSetWindowAttributes){
 			.background_pixel = BlackPixel(x->disp, x->scr),
 			.border_pixel = 0,
 			.colormap = x->cmap,
-			.override_redirect = True,
+			.override_redirect = override_redirect,
 		}
 	);
 	x->init++;
-	if(XGetWindowAttributes(x->disp, x->win, &x->attr) == 0) {
-		XBP_ERRPRINT("Error: XGetWindowAttributes failed");
-		xbp_cleanup(x);
-		return -1;
-	}
 	x->gc = XCreateGC(x->disp, x->win, 0, NULL);
 	x->init++;
-	XChangeProperty(x->disp, x->win,
-	  XInternAtom(x->disp, "_NET_WM_STATE", False), XA_ATOM, 32,
-	  PropModeReplace, (const unsigned char*)"_NET_WM_STATE_FULLSCREEN", 1);
-	XSync(x->disp, False);
+	if(override_redirect == True) {
+		XChangeProperty(x->disp, x->win,
+		  XInternAtom(x->disp, "_NET_WM_STATE", False), XA_ATOM, 32,
+		  PropModeReplace, (const unsigned char*)"_NET_WM_STATE_FULLSCREEN", 1);
+		XSync(x->disp, False);
+	} else
+		XSelectInput(x->disp, x->win, StructureNotifyMask);
 	XMapWindow(x->disp, x->win);
 	return 0;
 }
@@ -100,28 +112,47 @@ static inline int xbp_keypress(struct xbp *x, XEvent *ev,
 	return 0;
 }
 
-static inline int xbp_handle(struct xbp *x,
-                             void (*action)(void*), void *data) {
+static inline int xbp_resize(struct xbp *x, XConfigureEvent xce,
+                                  int (*resize)(struct xbp*, void*),
+                                  void *data) {
+	if(x->init <= 4 || xce.window != x->win ||
+	  (xce.width == x->img->width && xce.height == x->img->height))
+		return 0;
+	XDestroyImage(x->img);
+	x->img = NULL;
+	x->init--;
+	xbp_initimage(x);
+	if(resize != NULL && resize(x, data) < 0)
+		return -1;
+	 return 0;
+}
+
+static inline int xbp_handle(struct xbp *x, void (*action)(void*),
+                             int (*resize)(struct xbp*, void*), void *data) {
 	XEvent ev;
 	while(XPending(x->disp) > 0) {
 		XNextEvent(x->disp, &ev);
-		if(ev.type == KeyPress && xbp_keypress(x, &ev, action, data))
+		if(ev.type == KeyPress && xbp_keypress(x, &ev, action, data) < 0)
+			return -1;
+		else if(ev.type == ConfigureNotify &&
+		  xbp_resize(x, ev.xconfigure, resize, data) < 0)
 			return -1;
 	}
 	return 0;
 }
 
 int xbp_main(struct xbp *x, int (*cb)(struct xbp*, void*),
-             void (*action)(void*), void *data) {
+             void (*action)(void*), int (*resize)(struct xbp*, void*),
+             void *data) {
 	XGrabKeyboard(x->disp, x->win, 0, GrabModeAsync, GrabModeAsync,
 	              CurrentTime);
-	x->running = True;
-	while(x->running) {
-		cb(x, data);
+	for(x->running = true; x->running == true; ) {
+		if(cb != NULL && cb(x, data) < 0)
+			break;
 		XPutImage(x->disp, x->win, x->gc, x->img,
-		          0, 0, 0, 0, x->attr.width, x->attr.height);
+		          0, 0, 0, 0, x->img->width, x->img->height);
 		XSync(x->disp, False);
-		if(xbp_handle(x, action, data) < 0)
+		if(xbp_handle(x, action, resize, data) < 0)
 			return -1;
 	}
 	XUngrabKeyboard(x->disp, CurrentTime);
