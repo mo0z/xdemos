@@ -39,11 +39,6 @@ struct metaballs {
 	size_t num_frames;
 };
 
-#define timespec_diff(ts1, ts2) ( \
-	(ts2).tv_sec *= -1, \
-	(ts2).tv_nsec *= -1, \
-	timespec_add((ts1), (ts2)) \
-)
 
 static inline struct timespec timespec_add(struct timespec ts1,
                                            struct timespec ts2) {
@@ -63,6 +58,13 @@ static inline struct timespec timespec_add(struct timespec ts1,
 		result.tv_sec -= sec;
 	}
 	return result;
+}
+
+static inline struct timespec timespec_diff(struct timespec ts1,
+                                            struct timespec ts2) {
+	ts2.tv_sec *= -1;
+	ts2.tv_nsec *= -1;
+	return timespec_add(ts1, ts2);
 }
 
 #define ABS(x) ((x) < 0 ? -(x) : (x))
