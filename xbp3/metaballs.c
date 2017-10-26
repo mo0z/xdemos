@@ -89,11 +89,11 @@ static inline float rsqrt(float n) {
 	float x2;
 	x2 = n * 0.5F;
 	v  = &n;
-	i  = *(int*)v;                              // evil floating point bit level hacking
-	i  = 0x5f3759df - (i >> 1);                 // what the fuck?
+	i  = *(int*)v;                      // evil floating point bit level hacking
+	i  = 0x5f3759df - (i >> 1);         // what the fuck?
 	v  = &i;
 	n  = *(float*)v;
-	n  = n * (1.5F - (x2 * n * n));             // 1st iteration
+	n  = n * (1.5F - (x2 * n * n));     // 1st iteration
 	return n;
 }
 
