@@ -1,7 +1,7 @@
 
 /* xbp.c
  *
- * Copyright (c) 2017, mar77i <mysatyre at gmail dot com>
+ * Copyright (c) 2017, mar77i <mar77 at protonmail dot ch>
  *
  * This software may be modified and distributed under the terms
  * of the ISC license.  See the LICENSE file for details.
