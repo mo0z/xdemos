@@ -7,12 +7,20 @@
  * of the ISC license.  See the LICENSE file for details.
  */
 
+#include <signal.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
+#include <unistd.h>
 #include <X11/Xatom.h>
 #include <X11/XKBlib.h>
 
 #include "xbp.h"
+
+#define FRAME_SIGNAL SIGALRM
+
+static bool xbp_timer = false;
 
 static inline int xbp_initimage(struct xbp *x) {
 	XWindowAttributes attr;
@@ -75,6 +83,32 @@ static inline int xbp_initwindow(struct xbp *x, Window *root) {
 	return 0;
 }
 
+void xbp_main_signal(int sig) {
+	xbp_timer |= sig == FRAME_SIGNAL;
+}
+
+int xbp_inittimer(struct xbp *x) {
+	size_t max_fps = 60;
+	struct sigaction sa = {
+		.sa_flags = 0,
+		.sa_handler = xbp_main_signal,
+	};
+	struct timespec ts = {
+		.tv_sec = 0,
+		.tv_nsec = XBP_BILLION / max_fps,
+	};
+	sigemptyset(&sa.sa_mask);
+	sigaction(FRAME_SIGNAL, &sa, NULL);
+	if(timer_create(CLOCK_MONOTONIC, NULL, &x->timerid) < 0)
+		return -1;
+	x->init++;
+	timer_settime(x->timerid, 0, &(struct itimerspec){
+		.it_value = ts,
+		.it_interval = ts,
+	}, NULL);
+	return 0;
+}
+
 int xbp_init(struct xbp *x, const char *display_name) {
 	Window root;
 	if(x == NULL)
@@ -94,7 +128,8 @@ int xbp_init(struct xbp *x, const char *display_name) {
 	root = RootWindow(x->disp, x->scr);
 	x->cmap = XCreateColormap(x->disp, root, x->vinfo.visual, AllocNone);
 	x->init++;
-	if(xbp_initwindow(x, &root) < 0 || xbp_initimage(x) < 0)
+	if(xbp_initwindow(x, &root) < 0 || xbp_inittimer(x) < 0 ||
+	  xbp_initimage(x) < 0)
 		goto error;
 	return 0;
 error:
@@ -146,15 +181,21 @@ int xbp_main(struct xbp *x, int (*cb)(struct xbp*, void*),
              void *data) {
 	XGrabKeyboard(x->disp, x->win, 0, GrabModeAsync, GrabModeAsync,
 	              CurrentTime);
-	for(x->running = true; x->running == true; ) {
+	xbp_timer = false;
+	x->running = true;
+	do {
+		if(xbp_timer == false)
+			sleep(1);
+		if(xbp_timer == false)
+			continue;
+		xbp_timer = false;
 		if(cb != NULL && cb(x, data) < 0)
 			break;
 		XPutImage(x->disp, x->win, x->gc, x->img,
 		          0, 0, 0, 0, x->img->width, x->img->height);
-		XSync(x->disp, False);
 		if(xbp_handle(x, action, resize, data) < 0)
 			return -1;
-	}
+	} while(x->running == true);
 	XUngrabKeyboard(x->disp, CurrentTime);
 	return 0;
 }
@@ -162,8 +203,10 @@ int xbp_main(struct xbp *x, int (*cb)(struct xbp*, void*),
 void xbp_cleanup(struct xbp *x) {
 	if(x == NULL || x->disp == NULL)
 		return;
-	if(x->init > 4)
+	if(x->init > 5)
 		XDestroyImage(x->img);
+	if(x->init > 4)
+		timer_delete(x->timerid);
 	if(x->init > 3)
 		XFreeGC(x->disp, x->gc);
 	if(x->init > 2)

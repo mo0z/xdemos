@@ -25,16 +25,17 @@
 	fprintf(stderr, "%s:%d: %s()\n", __FILE__, __LINE__, __func__); \
 } while(0);
 
+#define XBP_BILLION (1000 * 1000 * 1000)
+
 struct xbp {
 	Display *disp;
 	int scr;
 	XVisualInfo vinfo;
 	Colormap cmap;
-
 	Window win;
 	GC gc;
-
 	XImage *img;
+	timer_t timerid;
 	char init;
 	bool running;
 	struct xbp_sizehint {

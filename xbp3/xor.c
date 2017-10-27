@@ -38,7 +38,7 @@ int main(void) {
 	OFFSET_TYPE offset = 0;
 	if(xbp_init(&x, NULL) < 0)
 		return EXIT_FAILURE;
-	if(xbp_main(&x, update, NULL, &offset) == 0)
+	if(xbp_main(&x, update, NULL, NULL, &offset) == 0)
 		ret = EXIT_SUCCESS;
 	xbp_cleanup(&x);
 	return ret;

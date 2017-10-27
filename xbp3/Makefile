@@ -3,7 +3,7 @@
 
 CFLAGS += -D_DEFAULT_SOURCE $(PROD_CFLAGS)
 LDFLAGS += $(PROD_LDFLAGS)
-LDLIBS += -lX11 -lm
+LDLIBS += -lX11 -lm -lrt
 
 all: metaballs xor
 

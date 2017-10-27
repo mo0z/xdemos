@@ -17,7 +17,6 @@
 #include "hsv.h"
 #include "xbp.h"
 
-#define BILLION (1000 * 1000 * 1000)
 #define LIMIT(x, l) (((x) > (l)) ? (l) : (x))
 #define DIST_MULT(w) (w)
 #define NUM_BALLS 10
@@ -47,13 +46,13 @@ static inline struct timespec timespec_add(struct timespec ts1,
 	result.tv_nsec += ts2.tv_nsec;
 	result.tv_sec += ts2.tv_sec;
 
-	if(result.tv_nsec >= BILLION) {
-		result.tv_sec += result.tv_nsec / BILLION;
-		result.tv_nsec %= BILLION;
+	if(result.tv_nsec >= XBP_BILLION) {
+		result.tv_sec += result.tv_nsec / XBP_BILLION;
+		result.tv_nsec %= XBP_BILLION;
 	}
 	if(result.tv_nsec < 0) {
-		sec = 1 + -(result.tv_nsec / BILLION);
-		result.tv_nsec += BILLION * sec;
+		sec = 1 + -(result.tv_nsec / XBP_BILLION);
+		result.tv_nsec += XBP_BILLION * sec;
 		result.tv_sec -= sec;
 	}
 	return result;
@@ -188,11 +187,11 @@ static inline int print_stats(struct metaballs *m) {
 	}
 	m->total_runtime = timespec_diff(ts, m->total_runtime);
 	fprintf(stderr, "total runtime: %.2f\n", ((double)m->total_runtime.tv_sec
-	        + (double)m->total_runtime.tv_nsec / BILLION));
+	        + (double)m->total_runtime.tv_nsec / XBP_BILLION));
 	fprintf(stderr, "num frames: %zu\n", m->num_frames);
 	fprintf(stderr, "FPS: %.2f\n",
 		m->num_frames / ((double)m->total_runtime.tv_sec
-		+ (double)m->total_runtime.tv_nsec / BILLION));
+		+ (double)m->total_runtime.tv_nsec / XBP_BILLION));
 	fprintf(stderr, "time spent for calulation in total: %ld.%09ld\n",
 	        m->total_frametime.tv_sec, m->total_frametime.tv_nsec);
 	return 0;
