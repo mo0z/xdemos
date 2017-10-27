@@ -30,7 +30,6 @@
 struct xbp {
 	Display *disp;
 	int scr;
-	XVisualInfo vinfo;
 	Colormap cmap;
 	Window win;
 	GC gc;

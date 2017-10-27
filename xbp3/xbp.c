@@ -22,13 +22,13 @@
 
 static bool xbp_timer = false;
 
-static inline int xbp_initimage(struct xbp *x) {
+static inline int xbp_initimage(struct xbp *x, XVisualInfo *vinfo) {
 	XWindowAttributes attr;
 	if(XGetWindowAttributes(x->disp, x->win, &attr) == 0) {
 		XBP_ERRPRINT("Error: XGetWindowAttributes failed");
 		return -1;
 	}
-	x->img = XCreateImage(x->disp, x->vinfo.visual, x->vinfo.depth,
+	x->img = XCreateImage(x->disp, vinfo->visual, vinfo->depth,
 	         ZPixmap, 0, NULL, attr.width, attr.height, 8, 0);
 	x->img->data = malloc(x->img->bits_per_pixel / CHAR_BIT *
 	                      x->img->width * x->img->height);
@@ -41,7 +41,8 @@ static inline int xbp_initimage(struct xbp *x) {
 	return 0;
 }
 
-static inline int xbp_initwindow(struct xbp *x, Window *root) {
+static inline int xbp_initwindow(struct xbp *x, Window *root,
+                                 XVisualInfo *vinfo) {
 	XWindowAttributes root_attr;
 	int width = 0, height = 0;
 	Bool override_redirect = True;
@@ -60,7 +61,7 @@ static inline int xbp_initwindow(struct xbp *x, Window *root) {
 	override_redirect = width == root_attr.width && height == root_attr.height;
 	x->win = XCreateWindow(x->disp, *root,
 		0, 0, width, height,
-		0, x->vinfo.depth, InputOutput, x->vinfo.visual,
+		0, vinfo->depth, InputOutput, vinfo->visual,
 		CWBackPixel | CWColormap | CWBorderPixel | CWOverrideRedirect,
 		&(XSetWindowAttributes){
 			.background_pixel = BlackPixel(x->disp, x->scr),
@@ -111,6 +112,7 @@ int xbp_inittimer(struct xbp *x) {
 
 int xbp_init(struct xbp *x, const char *display_name) {
 	Window root;
+	XVisualInfo vinfo;
 	if(x == NULL)
 		return -1;
 	x->init = 0;
@@ -121,15 +123,15 @@ int xbp_init(struct xbp *x, const char *display_name) {
 	}
 	x->init++;
 	x->scr = DefaultScreen(x->disp);
-	if(XMatchVisualInfo(x->disp, x->scr, 32, TrueColor, &x->vinfo) == 0) {
+	if(XMatchVisualInfo(x->disp, x->scr, 32, TrueColor, &vinfo) == 0) {
 		XBP_ERRPRINT("XMatchVisualInfo: no such visual");
 		goto error;
 	}
 	root = RootWindow(x->disp, x->scr);
-	x->cmap = XCreateColormap(x->disp, root, x->vinfo.visual, AllocNone);
+	x->cmap = XCreateColormap(x->disp, root, vinfo.visual, AllocNone);
 	x->init++;
-	if(xbp_initwindow(x, &root) < 0 || xbp_inittimer(x) < 0 ||
-	  xbp_initimage(x) < 0)
+	if(xbp_initwindow(x, &root, &vinfo) < 0 || xbp_inittimer(x) < 0 ||
+	  xbp_initimage(x, &vinfo) < 0)
 		goto error;
 	return 0;
 error:
@@ -150,13 +152,19 @@ static inline int xbp_keypress(struct xbp *x, XEvent *ev,
 static inline int xbp_resize(struct xbp *x, XConfigureEvent xce,
                                   int (*resize)(struct xbp*, void*),
                                   void *data) {
+	XVisualInfo vinfo;
+	int depth = 24;
 	if(x->init <= 4 || xce.window != x->win ||
 	  (xce.width == x->img->width && xce.height == x->img->height))
 		return 0;
 	XDestroyImage(x->img);
 	x->img = NULL;
+	if(XMatchVisualInfo(x->disp, x->scr, depth, TrueColor, &vinfo) == 0) {
+		XBP_ERRPRINT("XMatchVisualInfo: no such visual");
+		return -1;
+	}
 	x->init--;
-	xbp_initimage(x);
+	xbp_initimage(x, &vinfo);
 	if(resize != NULL && resize(x, data) < 0)
 		return -1;
 	 return 0;
