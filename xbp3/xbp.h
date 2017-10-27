@@ -57,7 +57,7 @@ static inline void xbp_set_pixel(XImage *img, int x, int y,
 		return;
 	px = img->bytes_per_line * y + x * img->bits_per_pixel / CHAR_BIT;
 	for(i = 0; i < img->bits_per_pixel / CHAR_BIT; i++)
-		img->data[px + i] = color >> (8 * i);
+		img->data[px + i] = ((unsigned char*)&color)[i];
 }
 
 void xbp_cleanup(struct xbp *x);
