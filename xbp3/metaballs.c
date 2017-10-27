@@ -25,7 +25,6 @@
 #define RADIUS_HIGH(w) ((w) / 16)
 #define MAX_SPEED(w) (w / 80)
 #define MAX_DIST (256.0 * NUM_BALLS)
-#define MAX_FPS 60
 
 struct metaballs {
 	struct {
@@ -151,7 +150,6 @@ int update(struct xbp *x, void *data) {
 	frame_end = timespec_diff(frame_end, frame_start);
 	m->total_frametime = timespec_add(m->total_frametime, frame_end);
 	m->num_frames++;
-	// TODO: sleep here to limit fps to MAX_FPS
 	return 0;
 }
 
