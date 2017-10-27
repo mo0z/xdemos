@@ -95,7 +95,7 @@ static inline float rsqrt(float n) {
 	return n;
 }
 
-static inline void action(void *data) {
+static inline int action(struct xbp *x, XEvent *ev, void *data) {
 	struct metaballs *m = data;
 	size_t i;
 	float rnd, mult, hue, rgb[3] = { 0.0, 0.0, 0.0 };
@@ -114,6 +114,9 @@ static inline void action(void *data) {
 		((unsigned char*)m->rgb_cache)[4 * i + 2] = rgb[2] * 255;
 		((unsigned char*)m->rgb_cache)[4 * i + 3] =          255;
 	}
+	return 0;
+	(void)x;
+	(void)ev;
 }
 
 int update(struct xbp *x, void *data) {
@@ -231,12 +234,22 @@ int main(void) {
 	}
 	if(resize(&x, &m) < 0)
 		goto error;
-	action(&m);
+	action(&x, NULL, &m);
 	if(clock_gettime(CLOCK_MONOTONIC, &m.total_runtime) < 0) {
 		XBP_ERRPRINT("Error: clock_gettime");
 		goto error;
 	}
-	if(xbp_main(&x, update, action, resize, &m) == 0 &&
+	if(xbp_main(&x, (struct xbp_callbacks){
+		.update = update,
+		.resize = resize,
+		.listeners = (struct xbp_listener*[2]){
+			&(struct xbp_listener){
+				.event = KeyPress,
+				.callback = action,
+			},
+			NULL,
+		},
+	}, &m) == 0 &&
 	  print_stats(&m) == 0)
 		ret = EXIT_SUCCESS;
 error:

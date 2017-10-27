@@ -46,10 +46,18 @@ struct xbp {
 	} config;
 };
 
+struct xbp_callbacks {
+	int (*update)(struct xbp*, void*);
+	int (*resize)(struct xbp*, void*);
+	struct xbp_listener {
+		int event;
+		int (*callback)(struct xbp*, XEvent*, void*);
+	} **listeners; // NULL-terminated list
+};
+
 int xbp_init(struct xbp *x, const char *display_name);
-int xbp_main(struct xbp *x, int (*cb)(struct xbp*, void*),
-             void (*action)(void*), int (*resize)(struct xbp*, void*),
-             void *data);
+int xbp_main(struct xbp *x, struct xbp_callbacks callbacks, void *data);
+
 static inline void xbp_set_pixel(XImage *img, int x, int y,
                                  unsigned long color) {
 	int i, px;

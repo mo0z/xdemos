@@ -148,16 +148,6 @@ error:
 	return -1;
 }
 
-static inline int xbp_keypress(struct xbp *x, XEvent *ev,
-                               void (*action)(void*), void *data) {
-	KeySym keysym = XkbKeycodeToKeysym(x->disp, ev->xkey.keycode, 0, 0);
-	if(keysym == XK_q || keysym == XK_Escape)
-		x->running = false;
-	if(keysym == XK_space && action != NULL)
-		action(data);
-	return 0;
-}
-
 static inline int xbp_resize(struct xbp *x, XConfigureEvent xce,
                                   int (*resize)(struct xbp*, void*),
                                   void *data) {
@@ -181,23 +171,45 @@ static inline int xbp_resize(struct xbp *x, XConfigureEvent xce,
 	 return 0;
 }
 
-static inline int xbp_handle(struct xbp *x, void (*action)(void*),
-                             int (*resize)(struct xbp*, void*), void *data) {
+static inline int xbp_call_event_callbacks(struct xbp *x, XEvent *ev,
+                                           struct xbp_listener **listeners,
+                                           void *data) {
+	struct xbp_listener *listener;
+	if(listeners == NULL)
+		return 0;
+	listener = *listeners;
+	while(listener != NULL) {
+		if(ev->type == listener->event && listener->callback(x, ev, data) < 0)
+			return -1;
+		listener = *(++listeners);
+	}
+	return 0;
+}
+
+static inline void xbp_keypress(struct xbp *x, XEvent *ev) {
+	KeySym keysym = XkbKeycodeToKeysym(x->disp, ev->xkey.keycode, 0, 0);
+	if(keysym == XK_q || keysym == XK_Escape)
+		x->running = false;
+}
+
+static inline int xbp_handle(struct xbp *x, struct xbp_callbacks callbacks,
+                             void *data) {
 	XEvent ev;
 	while(XPending(x->disp) > 0) {
 		XNextEvent(x->disp, &ev);
-		if(ev.type == KeyPress && xbp_keypress(x, &ev, action, data) < 0)
+		if(ev.type == ConfigureNotify &&
+		  xbp_resize(x, ev.xconfigure, callbacks.resize, data) < 0)
 			return -1;
-		else if(ev.type == ConfigureNotify &&
-		  xbp_resize(x, ev.xconfigure, resize, data) < 0)
+		if(ev.type == KeyPress)
+			xbp_keypress(x, &ev);
+		if(xbp_call_event_callbacks(x, &ev, callbacks.listeners, data) < 0)
 			return -1;
 	}
 	return 0;
 }
 
-int xbp_main(struct xbp *x, int (*cb)(struct xbp*, void*),
-             void (*action)(void*), int (*resize)(struct xbp*, void*),
-             void *data) {
+int xbp_main(struct xbp *x, struct xbp_callbacks callbacks, void *data) {
+	int ret = -1;
 	XGrabKeyboard(x->disp, x->win, 0, GrabModeAsync, GrabModeAsync,
 	              CurrentTime);
 	xbp_timer = false;
@@ -208,15 +220,17 @@ int xbp_main(struct xbp *x, int (*cb)(struct xbp*, void*),
 		if(xbp_timer == false)
 			continue;
 		xbp_timer = false;
-		if(cb != NULL && cb(x, data) < 0)
-			break;
+		if(callbacks.update != NULL && callbacks.update(x, data) < 0)
+			goto error;
 		XPutImage(x->disp, x->win, x->gc, x->img,
 		          0, 0, 0, 0, x->img->width, x->img->height);
-		if(xbp_handle(x, action, resize, data) < 0)
-			return -1;
+		if(xbp_handle(x, callbacks, data) < 0)
+			goto error;
 	} while(x->running == true);
+	ret = 0;
+error:
 	XUngrabKeyboard(x->disp, CurrentTime);
-	return 0;
+	return ret;
 }
 
 void xbp_cleanup(struct xbp *x) {
