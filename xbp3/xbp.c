@@ -45,35 +45,35 @@ static inline int xbp_initwindow(struct xbp *x, Window *root,
                                  XVisualInfo *vinfo) {
 	XWindowAttributes root_attr;
 	int width = 0, height = 0;
-	Bool override_redirect = True;
 	if(XGetWindowAttributes(x->disp, *root, &root_attr) == 0) {
 		XBP_ERRPRINT("XGetWindowAttributes failed");
 		return -1;
 	}
-	if(x->sizehint != NULL) {
-		width = x->sizehint->width;
-		height = x->sizehint->height;
+	if(x->config.fullscreen == false) {
+		width = x->config.width;
+		height = x->config.height;
 	}
 	if(width <= 0 || width > root_attr.width)
 		width = root_attr.width;
 	if(height <= 0 || height > root_attr.height)
 		height = root_attr.height;
-	override_redirect = width == root_attr.width && height == root_attr.height;
 	x->win = XCreateWindow(x->disp, *root,
 		0, 0, width, height,
 		0, vinfo->depth, InputOutput, vinfo->visual,
-		CWBackPixel | CWColormap | CWBorderPixel | CWOverrideRedirect,
+		CWBackPixel | CWColormap | CWBorderPixel | (
+			x->config.fullscreen == true ? CWOverrideRedirect : 0
+		),
 		&(XSetWindowAttributes){
 			.background_pixel = BlackPixel(x->disp, x->scr),
 			.border_pixel = 0,
 			.colormap = x->cmap,
-			.override_redirect = override_redirect,
+			.override_redirect = True,
 		}
 	);
 	x->init++;
 	x->gc = XCreateGC(x->disp, x->win, 0, NULL);
 	x->init++;
-	if(override_redirect == True) {
+	if(x->config.fullscreen == true) {
 		XChangeProperty(x->disp, x->win,
 		  XInternAtom(x->disp, "_NET_WM_STATE", False), XA_ATOM, 32,
 		  PropModeReplace, (const unsigned char*)"_NET_WM_STATE_FULLSCREEN", 1);
@@ -96,8 +96,14 @@ static inline int xbp_inittimer(struct xbp *x) {
 	};
 	struct timespec ts = {
 		.tv_sec = 0,
-		.tv_nsec = XBP_BILLION / max_fps,
+		.tv_nsec = 0,
 	};
+	if(x->config.max_fps > 0 && x->config.max_fps <= 128)
+		max_fps = x->config.max_fps;
+	if(max_fps == 1)
+		ts.tv_sec = 1;
+	else
+		ts.tv_nsec = XBP_BILLION / max_fps;
 	sigemptyset(&sa.sa_mask);
 	sigaction(FRAME_SIGNAL, &sa, NULL);
 	if(timer_create(CLOCK_MONOTONIC, NULL, &x->timerid) < 0)
@@ -113,6 +119,7 @@ static inline int xbp_inittimer(struct xbp *x) {
 int xbp_init(struct xbp *x, const char *display_name) {
 	Window root;
 	XVisualInfo vinfo;
+	int depth = 24;
 	if(x == NULL)
 		return -1;
 	x->init = 0;
@@ -123,7 +130,9 @@ int xbp_init(struct xbp *x, const char *display_name) {
 	}
 	x->init++;
 	x->scr = DefaultScreen(x->disp);
-	if(XMatchVisualInfo(x->disp, x->scr, 32, TrueColor, &vinfo) == 0) {
+	if(x->config.alpha == true)
+		depth = 32;
+	if(XMatchVisualInfo(x->disp, x->scr, depth, TrueColor, &vinfo) == 0) {
 		XBP_ERRPRINT("XMatchVisualInfo: no such visual");
 		goto error;
 	}
@@ -159,6 +168,8 @@ static inline int xbp_resize(struct xbp *x, XConfigureEvent xce,
 		return 0;
 	XDestroyImage(x->img);
 	x->img = NULL;
+	if(x->config.alpha == true)
+		depth = 32;
 	if(XMatchVisualInfo(x->disp, x->scr, depth, TrueColor, &vinfo) == 0) {
 		XBP_ERRPRINT("XMatchVisualInfo: no such visual");
 		return -1;

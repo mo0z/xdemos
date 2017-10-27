@@ -199,10 +199,13 @@ static inline int print_stats(struct metaballs *m) {
 
 int main(void) {
 	struct xbp x = {
-		.sizehint = &(struct xbp_sizehint){
+		.config = {
 			.width = 800,
 			.height = 600,
-		}
+			.max_fps = 0,
+			.fullscreen = false,
+			.alpha = true,
+		},
 	};
 	struct metaballs m = {
 		.total_frametime = { 0, 0 },

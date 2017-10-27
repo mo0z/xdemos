@@ -33,7 +33,12 @@ int update(struct xbp *x, void *data) {
 }
 
 int main(void) {
-	struct xbp x;
+	struct xbp x = {
+		.config = {
+			.fullscreen = true,
+			.alpha = false,
+		},
+	};
 	int ret = EXIT_FAILURE;
 	OFFSET_TYPE offset = 0;
 	if(xbp_init(&x, NULL) < 0)

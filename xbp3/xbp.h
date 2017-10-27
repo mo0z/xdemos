@@ -37,9 +37,13 @@ struct xbp {
 	timer_t timerid;
 	char init;
 	bool running;
-	struct xbp_sizehint {
+
+	struct xbp_config {
+		size_t max_fps;
 		int width, height;
-	} *sizehint;
+		bool fullscreen;
+		bool alpha;
+	} config;
 };
 
 int xbp_init(struct xbp *x, const char *display_name);
