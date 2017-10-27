@@ -88,7 +88,7 @@ void xbp_main_signal(int sig) {
 	xbp_timer |= sig == FRAME_SIGNAL;
 }
 
-int xbp_inittimer(struct xbp *x) {
+static inline int xbp_inittimer(struct xbp *x) {
 	size_t max_fps = 60;
 	struct sigaction sa = {
 		.sa_flags = 0,
