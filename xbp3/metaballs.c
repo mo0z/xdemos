@@ -105,7 +105,6 @@ int action(struct xbp *x, XEvent *ev) {
 		keysym = XkbKeycodeToKeysym(x->disp, ev->xkey.keycode, 0, 0);
 	if(keysym != XK_space)
 		return 0;
-	m->dist_cache[0] = (float)INT_MAX;
 	rnd = (float)rand() / RAND_MAX * 2.0;
 	mult = .25 + (float)rand() / RAND_MAX * 1.75;
 	for(i = 0; i < 256; i++) {
@@ -163,8 +162,8 @@ int update(struct xbp *x) {
 
 int resize(struct xbp *x) {
 	struct metaballs *m = xbp_get_data(x);
-	float fx, fy;
-	size_t i, l;
+	float fx, fy, dist;
+	size_t i, j, l;
 	m->dist_cache = realloc(
 		m->dist_cache,
 		x->img->width * x->img->height * sizeof *m->dist_cache * NUM_BALLS
@@ -174,10 +173,14 @@ int resize(struct xbp *x) {
 		return -1;
 	}
 	l = x->img->width * x->img->height;
+	for(j = 0; j < NUM_BALLS; j++)
+		m->dist_cache[j * l] = (float)INT_MAX;
 	for(i = 1; i < l; i++) {
 		fx = i % x->img->width;
 		fy = i / x->img->height;
-		m->dist_cache[i] = rsqrt(fx * fx + fy * fy) * DIST_MULT(x->img->width);
+		dist = rsqrt(fx * fx + fy * fy);
+		for(j = 0; j < NUM_BALLS; j++)
+			m->dist_cache[j * l + i] = dist * DIST_MULT(x->img->width);
 	}
 	for(i = 0; i < NUM_BALLS; i++) {
 		if(m->balls[i].x > x->img->width)
