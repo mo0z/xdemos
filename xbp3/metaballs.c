@@ -13,6 +13,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <X11/XKBlib.h>
 
 #include "hsv.h"
 #include "xbp.h"
@@ -95,10 +96,15 @@ static inline float rsqrt(float n) {
 	return n;
 }
 
-static inline int action(struct xbp *x, XEvent *ev) {
+int action(struct xbp *x, XEvent *ev) {
 	struct metaballs *m = xbp_get_data(x);
 	size_t i;
 	float rnd, mult, hue, rgb[3] = { 0.0, 0.0, 0.0 };
+	KeySym keysym = XK_space;
+	if(ev != NULL)
+		keysym = XkbKeycodeToKeysym(x->disp, ev->xkey.keycode, 0, 0);
+	if(keysym != XK_space)
+		return 0;
 	m->dist_cache[0] = (float)INT_MAX;
 	rnd = (float)rand() / RAND_MAX * 2.0;
 	mult = .25 + (float)rand() / RAND_MAX * 1.75;
