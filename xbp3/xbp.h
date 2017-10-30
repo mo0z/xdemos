@@ -42,8 +42,7 @@ struct xbp {
 	struct xbp_config {
 		size_t max_fps;
 		int width, height;
-		bool fullscreen;
-		bool alpha;
+		unsigned char fullscreen: 1, alpha: 1, defaultkeys: 1;
 	} config;
 	unsigned char running: 1, gc_set: 1, cmap_set: 1, win_set: 1;
 };

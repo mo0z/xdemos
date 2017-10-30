@@ -37,6 +37,7 @@ int main(void) {
 		.config = {
 			.fullscreen = true,
 			.alpha = false,
+			.defaultkeys = true,
 		},
 	};
 	int ret = EXIT_FAILURE;

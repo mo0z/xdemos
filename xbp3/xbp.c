@@ -201,7 +201,7 @@ static inline int xbp_handle(struct xbp *x, struct xbp_callbacks callbacks) {
 		if(ev.type == ConfigureNotify &&
 		  xbp_resize(x, ev.xconfigure, callbacks.resize) < 0)
 			return -1;
-		if(ev.type == KeyPress)
+		if(x->config.defaultkeys == true && ev.type == KeyPress)
 			xbp_keypress(x, &ev);
 		if(xbp_call_event_callbacks(x, &ev, callbacks.listeners) < 0)
 			return -1;

@@ -208,6 +208,7 @@ int main(void) {
 			.max_fps = 0,
 			.fullscreen = false,
 			.alpha = true,
+			.defaultkeys = true,
 		},
 	};
 	struct metaballs m = {
