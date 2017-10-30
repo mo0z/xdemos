@@ -36,7 +36,7 @@ struct xbp {
 	XImage *img;
 	timer_t timerid;
 	size_t img_allo;
-	int scr, win_rect[4];
+	int scr, win_rect[4], old_rect[4];
 	unsigned int depth;
 	void *data;
 
@@ -54,9 +54,11 @@ struct xbp {
 			int (*callback)(struct xbp*, XEvent*);
 		} **listeners; // NULL-terminated list
 	} callbacks;
-	unsigned char running: 1, gc_set: 1, cmap_set: 1, win_set: 1;
+	unsigned char running: 1, gc_set: 1, cmap_set: 1, win_set: 1, fullscreen: 1;
 };
 
+int xbp_fullscreen(struct xbp *x);
+int xbp_fullscreen_leave(struct xbp *x);
 int xbp_init(struct xbp *x, const char *display_name);
 int xbp_main(struct xbp *x);
 

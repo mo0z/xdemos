@@ -103,6 +103,12 @@ int action(struct xbp *x, XEvent *ev) {
 	KeySym keysym = XK_space;
 	if(ev != NULL)
 		keysym = XkbKeycodeToKeysym(x->disp, ev->xkey.keycode, 0, 0);
+	if(keysym == XK_f) {
+		if(x->fullscreen == true)
+			return xbp_fullscreen_leave(x);
+		else
+			return xbp_fullscreen(x);
+	}
 	if(keysym != XK_space)
 		return 0;
 	rnd = (float)rand() / RAND_MAX * 2.0;

@@ -7,6 +7,7 @@
  * of the ISC license.  See the LICENSE file for details.
  */
 
+#include <assert.h>
 #include <signal.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -25,7 +26,7 @@ static bool xbp_timer = false;
 
 static inline int xbp_initimage(struct xbp *x) {
 	if(x->img != NULL) {
-		if(x->win_rect[2] * x->win_rect[3] <= x->img_allo) {
+		if((size_t)x->win_rect[2] * (size_t)x->win_rect[3] <= x->img_allo) {
 			x->img->width = x->win_rect[2];
 			x->img->height = x->win_rect[3];
 			return 0;
@@ -45,13 +46,52 @@ static inline int xbp_initimage(struct xbp *x) {
 	return 0;
 }
 
+int xbp_fullscreen(struct xbp *x) {
+	XWindowAttributes attr;
+	XUnmapWindow(x->disp, x->win);
+	XChangeWindowAttributes(x->disp, x->win, CWOverrideRedirect,
+		&(XSetWindowAttributes){.override_redirect = True});
+	XMapWindow(x->disp, x->win);
+	XGrabPointer(x->disp, x->win, 0, 0, GrabModeAsync, GrabModeAsync, 0, 0,
+	             CurrentTime);
+	XGrabKeyboard(x->disp, x->win, 0, GrabModeAsync, GrabModeAsync,
+	              CurrentTime);
+	assert(sizeof x->win_rect == 4 * sizeof x->win_rect[0]);
+	memcpy(x->old_rect, x->win_rect, sizeof x->win_rect);
+	if(XGetWindowAttributes(x->disp, RootWindow(x->disp, x->scr), &attr) != 1)
+		return -1;
+	XMoveResizeWindow(x->disp, x->win, 0, 0, attr.width, attr.height);
+	XRaiseWindow(x->disp, x->win);
+	x->fullscreen = true;
+	return 0;
+}
+
 static inline long xbp_event_mask(struct xbp *x) {
 	long event_mask = x->config.event_mask;
 	if(x->config.defaultkeys == true)
 		event_mask |= KeyPressMask;
-	if(x->config.fullscreen == false)
+	if(x->fullscreen == false)
 		event_mask |= StructureNotifyMask;
 	return event_mask;
+}
+
+int xbp_fullscreen_leave(struct xbp *x) {
+	XUngrabPointer(x->disp, CurrentTime);
+	XUngrabKeyboard(x->disp, CurrentTime);
+	XUnmapWindow(x->disp, x->win);
+	x->fullscreen = false;
+	XChangeWindowAttributes(x->disp, x->win, CWOverrideRedirect|CWEventMask,
+			&(XSetWindowAttributes){
+		.override_redirect = False,
+		.event_mask = xbp_event_mask(x),
+	});
+	XMapWindow(x->disp, x->win);
+	assert(sizeof x->win_rect == 4 * sizeof x->win_rect[0]);
+	memcpy(x->win_rect, x->old_rect, sizeof x->win_rect);
+	XMoveResizeWindow(x->disp, x->win, x->win_rect[0], x->win_rect[1],
+	                  x->win_rect[2], x->win_rect[3]);
+	XRaiseWindow(x->disp, x->win);
+	return 0;
 }
 
 static inline int xbp_initwindow(struct xbp *x, Window *root) {
@@ -72,28 +112,20 @@ static inline int xbp_initwindow(struct xbp *x, Window *root) {
 	x->win = XCreateWindow(x->disp, *root,
 		x->win_rect[0], x->win_rect[1], x->win_rect[2], x->win_rect[3],
 		0, x->depth, InputOutput, &x->visual,
-		CWBackPixel | CWColormap | CWBorderPixel | CWEventMask | (
-			x->config.fullscreen == true ? CWOverrideRedirect : 0
-		),
+		CWBackPixel | CWColormap | CWBorderPixel | CWEventMask,
 		&(XSetWindowAttributes){
 			.background_pixel = BlackPixel(x->disp, x->scr),
 			.border_pixel = 0,
 			.colormap = x->cmap,
 			.event_mask = xbp_event_mask(x),
-			.override_redirect = True,
 		}
 	);
 	x->win_set = true;
 	x->gc = XCreateGC(x->disp, x->win, 0, NULL);
 	x->gc_set = true;
-	if(x->config.fullscreen == true) {
-		XChangeProperty(x->disp, x->win,
-		  XInternAtom(x->disp, "_NET_WM_STATE", False), XA_ATOM, 32,
-		  PropModeReplace, (const unsigned char*)"_NET_WM_STATE_FULLSCREEN", 1);
-		XSync(x->disp, False);
-	} else
-		XSelectInput(x->disp, x->win, StructureNotifyMask);
 	XMapWindow(x->disp, x->win);
+	if(x->config.fullscreen == true)
+		return xbp_fullscreen(x);
 	return 0;
 }
 
@@ -140,6 +172,7 @@ int xbp_init(struct xbp *x, const char *display_name) {
 	x->win_set = false;
 	x->gc_set = false;
 	x->cmap_set = false;
+	x->fullscreen = false;
 	x->disp = XOpenDisplay(display_name);
 	if(x->disp == NULL) {
 		XBP_ERRPRINT("failed to open Display");
@@ -214,8 +247,6 @@ static inline int xbp_handle(struct xbp *x) {
 
 int xbp_main(struct xbp *x) {
 	int ret = -1;
-	XGrabKeyboard(x->disp, x->win, 0, GrabModeAsync, GrabModeAsync,
-	              CurrentTime);
 	xbp_timer = false;
 	x->running = true;
 	do {
@@ -233,7 +264,8 @@ int xbp_main(struct xbp *x) {
 	} while(x->running == true);
 	ret = 0;
 error:
-	XUngrabKeyboard(x->disp, CurrentTime);
+	if(x->fullscreen == true)
+		xbp_fullscreen_leave(x);
 	return ret;
 }
 
