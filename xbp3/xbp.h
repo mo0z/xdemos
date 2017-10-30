@@ -35,6 +35,7 @@ struct xbp {
 	Visual visual;
 	XImage *img;
 	timer_t timerid;
+	size_t img_allo;
 	int scr, win_rect[4];
 	unsigned int depth;
 	void *data;

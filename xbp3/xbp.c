@@ -24,8 +24,14 @@
 static bool xbp_timer = false;
 
 static inline int xbp_initimage(struct xbp *x) {
-	if(x->img != NULL)
+	if(x->img != NULL) {
+		if(x->win_rect[2] * x->win_rect[3] <= x->img_allo) {
+			x->img->width = x->win_rect[2];
+			x->img->height = x->win_rect[3];
+			return 0;
+		}
 		XDestroyImage(x->img);
+	}
 	x->img = XCreateImage(x->disp, &x->visual, x->depth, ZPixmap, 0, NULL,
 	                      x->win_rect[2], x->win_rect[3], 8, 0);
 	x->img->data = malloc(x->img->bits_per_pixel / CHAR_BIT *
@@ -35,6 +41,7 @@ static inline int xbp_initimage(struct xbp *x) {
 		XDestroyImage(x->img);
 		return -1;
 	}
+	x->img_allo = x->img->width * x->img->height;
 	return 0;
 }
 
@@ -129,6 +136,7 @@ int xbp_init(struct xbp *x, const char *display_name) {
 		return -1;
 	x->img = NULL;
 	x->timerid = 0;
+	x->img_allo = 0;
 	x->win_set = false;
 	x->gc_set = false;
 	x->cmap_set = false;
@@ -159,12 +167,15 @@ error:
 }
 
 static inline int xbp_resize(struct xbp *x, XConfigureEvent xce) {
-	if(xce.width == x->win_rect[2] && xce.height == x->win_rect[3])
-		return 0;
-	xbp_initimage(x);
-	if(x->callbacks.resize != NULL && x->callbacks.resize(x) < 0)
+	x->win_rect[0] = xce.x;
+	x->win_rect[1] = xce.y;
+	x->win_rect[2] = xce.width;
+	x->win_rect[3] = xce.height;
+	if(xbp_initimage(x) < 0)
 		return -1;
-	 return 0;
+	if(x->callbacks.resize != NULL)
+		return x->callbacks.resize(x);
+	return 0;
 }
 
 static inline int xbp_call_event_callbacks(struct xbp *x, XEvent *ev,
