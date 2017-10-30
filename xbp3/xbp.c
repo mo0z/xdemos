@@ -43,6 +43,15 @@ static inline int xbp_initimage(struct xbp *x) {
 	return 0;
 }
 
+static inline long xbp_event_mask(struct xbp *x) {
+	long event_mask = x->config.event_mask;
+	if(x->config.defaultkeys == true)
+		event_mask |= KeyPressMask;
+	if(x->config.fullscreen == false)
+		event_mask |= StructureNotifyMask;
+	return event_mask;
+}
+
 static inline int xbp_initwindow(struct xbp *x, Window *root) {
 	XWindowAttributes root_attr;
 	int width = 0, height = 0;
@@ -61,13 +70,14 @@ static inline int xbp_initwindow(struct xbp *x, Window *root) {
 	x->win = XCreateWindow(x->disp, *root,
 		0, 0, width, height,
 		0, x->depth, InputOutput, &x->visual,
-		CWBackPixel | CWColormap | CWBorderPixel | (
+		CWBackPixel | CWColormap | CWBorderPixel | CWEventMask | (
 			x->config.fullscreen == true ? CWOverrideRedirect : 0
 		),
 		&(XSetWindowAttributes){
 			.background_pixel = BlackPixel(x->disp, x->scr),
 			.border_pixel = 0,
 			.colormap = x->cmap,
+			.event_mask = xbp_event_mask(x),
 			.override_redirect = True,
 		}
 	);
