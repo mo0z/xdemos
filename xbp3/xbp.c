@@ -163,8 +163,7 @@ error:
 	return -1;
 }
 
-static inline int xbp_resize(struct xbp *x, XConfigureEvent xce,
-                                  int (*resize)(struct xbp*)) {
+static inline int xbp_resize(struct xbp *x, XConfigureEvent xce) {
 	XVisualInfo vinfo;
 	int depth = 24;
 	if(xce.window != x->win ||
@@ -179,7 +178,7 @@ static inline int xbp_resize(struct xbp *x, XConfigureEvent xce,
 		return -1;
 	}
 	xbp_initimage(x);
-	if(resize != NULL && resize(x) < 0)
+	if(x->callbacks.resize != NULL && x->callbacks.resize(x) < 0)
 		return -1;
 	 return 0;
 }
@@ -204,22 +203,21 @@ static inline void xbp_keypress(struct xbp *x, XEvent *ev) {
 		x->running = false;
 }
 
-static inline int xbp_handle(struct xbp *x, struct xbp_callbacks callbacks) {
+static inline int xbp_handle(struct xbp *x) {
 	XEvent ev;
 	while(XPending(x->disp) > 0) {
 		XNextEvent(x->disp, &ev);
-		if(ev.type == ConfigureNotify &&
-		  xbp_resize(x, ev.xconfigure, callbacks.resize) < 0)
+		if(ev.type == ConfigureNotify && xbp_resize(x, ev.xconfigure) < 0)
 			return -1;
 		if(x->config.defaultkeys == true && ev.type == KeyPress)
 			xbp_keypress(x, &ev);
-		if(xbp_call_event_callbacks(x, &ev, callbacks.listeners) < 0)
+		if(xbp_call_event_callbacks(x, &ev, x->callbacks.listeners) < 0)
 			return -1;
 	}
 	return 0;
 }
 
-int xbp_main(struct xbp *x, struct xbp_callbacks callbacks) {
+int xbp_main(struct xbp *x) {
 	int ret = -1;
 	XGrabKeyboard(x->disp, x->win, 0, GrabModeAsync, GrabModeAsync,
 	              CurrentTime);
@@ -231,11 +229,11 @@ int xbp_main(struct xbp *x, struct xbp_callbacks callbacks) {
 		if(xbp_timer == false)
 			continue;
 		xbp_timer = false;
-		if(callbacks.update != NULL && callbacks.update(x) < 0)
+		if(x->callbacks.update != NULL && x->callbacks.update(x) < 0)
 			goto error;
 		XPutImage(x->disp, x->win, x->gc, x->img,
 		          0, 0, 0, 0, x->img->width, x->img->height);
-		if(xbp_handle(x, callbacks) < 0)
+		if(xbp_handle(x) < 0)
 			goto error;
 	} while(x->running == true);
 	ret = 0;

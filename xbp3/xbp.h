@@ -45,20 +45,19 @@ struct xbp {
 		int width, height;
 		unsigned char fullscreen: 1, alpha: 1, defaultkeys: 1;
 	} config;
+	struct xbp_callbacks {
+		int (*update)(struct xbp*);
+		int (*resize)(struct xbp*);
+		struct xbp_listener {
+			int event;
+			int (*callback)(struct xbp*, XEvent*);
+		} **listeners; // NULL-terminated list
+	} callbacks;
 	unsigned char running: 1, gc_set: 1, cmap_set: 1, win_set: 1;
 };
 
-struct xbp_callbacks {
-	int (*update)(struct xbp*);
-	int (*resize)(struct xbp*);
-	struct xbp_listener {
-		int event;
-		int (*callback)(struct xbp*, XEvent*);
-	} **listeners; // NULL-terminated list
-};
-
 int xbp_init(struct xbp *x, const char *display_name);
-int xbp_main(struct xbp *x, struct xbp_callbacks callbacks);
+int xbp_main(struct xbp *x);
 
 static inline void xbp_set_pixel(XImage *img, int x, int y,
                                  unsigned long color) {

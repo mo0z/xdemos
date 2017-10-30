@@ -216,6 +216,17 @@ int main(void) {
 			.alpha = true,
 			.defaultkeys = true,
 		},
+		.callbacks = {
+			.update = update,
+			.resize = resize,
+			.listeners = (struct xbp_listener*[2]){
+				&(struct xbp_listener){
+					.event = KeyPress,
+					.callback = action,
+				},
+				NULL,
+			},
+		},
 	};
 	struct metaballs m = {
 		.total_frametime = { 0, 0 },
@@ -247,17 +258,7 @@ int main(void) {
 		XBP_ERRPRINT("Error: clock_gettime");
 		goto error;
 	}
-	if(xbp_main(&x, (struct xbp_callbacks){
-		.update = update,
-		.resize = resize,
-		.listeners = (struct xbp_listener*[2]){
-			&(struct xbp_listener){
-				.event = KeyPress,
-				.callback = action,
-			},
-			NULL,
-		},
-	}) == 0 &&
+	if(xbp_main(&x) == 0 &&
 	  print_stats(&m) == 0)
 		ret = EXIT_SUCCESS;
 error:

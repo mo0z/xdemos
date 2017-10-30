@@ -39,13 +39,16 @@ int main(void) {
 			.alpha = false,
 			.defaultkeys = true,
 		},
+		.callbacks = {
+			.update = update,
+		},
 	};
 	int ret = EXIT_FAILURE;
 	OFFSET_TYPE offset = 0;
 	xbp_set_data(&x, &offset);
 	if(xbp_init(&x, NULL) < 0)
 		return EXIT_FAILURE;
-	if(xbp_main(&x, (struct xbp_callbacks){.update = update}) == 0)
+	if(xbp_main(&x) == 0)
 		ret = EXIT_SUCCESS;
 	xbp_cleanup(&x);
 	return ret;
