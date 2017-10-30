@@ -35,8 +35,6 @@ struct xbp {
 	GC gc;
 	XImage *img;
 	timer_t timerid;
-	char init;
-	bool running;
 
 	struct xbp_config {
 		size_t max_fps;
@@ -44,6 +42,7 @@ struct xbp {
 		bool fullscreen;
 		bool alpha;
 	} config;
+	unsigned char running: 1, gc_set: 1, cmap_set: 1, win_set: 1;
 };
 
 struct xbp_callbacks {

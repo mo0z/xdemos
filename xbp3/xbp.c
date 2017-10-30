@@ -28,6 +28,8 @@ static inline int xbp_initimage(struct xbp *x, XVisualInfo *vinfo) {
 		XBP_ERRPRINT("Error: XGetWindowAttributes failed");
 		return -1;
 	}
+	if(x->img != NULL)
+		XDestroyImage(x->img);
 	x->img = XCreateImage(x->disp, vinfo->visual, vinfo->depth,
 	         ZPixmap, 0, NULL, attr.width, attr.height, 8, 0);
 	x->img->data = malloc(x->img->bits_per_pixel / CHAR_BIT *
@@ -37,7 +39,6 @@ static inline int xbp_initimage(struct xbp *x, XVisualInfo *vinfo) {
 		XDestroyImage(x->img);
 		return -1;
 	}
-	x->init++;
 	return 0;
 }
 
@@ -70,9 +71,9 @@ static inline int xbp_initwindow(struct xbp *x, Window *root,
 			.override_redirect = True,
 		}
 	);
-	x->init++;
+	x->win_set = true;
 	x->gc = XCreateGC(x->disp, x->win, 0, NULL);
-	x->init++;
+	x->gc_set = true;
 	if(x->config.fullscreen == true) {
 		XChangeProperty(x->disp, x->win,
 		  XInternAtom(x->disp, "_NET_WM_STATE", False), XA_ATOM, 32,
@@ -108,7 +109,6 @@ static inline int xbp_inittimer(struct xbp *x) {
 	sigaction(FRAME_SIGNAL, &sa, NULL);
 	if(timer_create(CLOCK_MONOTONIC, NULL, &x->timerid) < 0)
 		return -1;
-	x->init++;
 	timer_settime(x->timerid, 0, &(struct itimerspec){
 		.it_value = ts,
 		.it_interval = ts,
@@ -122,13 +122,16 @@ int xbp_init(struct xbp *x, const char *display_name) {
 	int depth = 24;
 	if(x == NULL)
 		return -1;
-	x->init = 0;
+	x->img = NULL;
+	x->timerid = 0;
+	x->win_set = false;
+	x->gc_set = false;
+	x->cmap_set = false;
 	x->disp = XOpenDisplay(display_name);
 	if(x->disp == NULL) {
 		XBP_ERRPRINT("failed to open Display");
 		return -1;
 	}
-	x->init++;
 	x->scr = DefaultScreen(x->disp);
 	if(x->config.alpha == true)
 		depth = 32;
@@ -138,7 +141,7 @@ int xbp_init(struct xbp *x, const char *display_name) {
 	}
 	root = RootWindow(x->disp, x->scr);
 	x->cmap = XCreateColormap(x->disp, root, vinfo.visual, AllocNone);
-	x->init++;
+	x->cmap_set = true;
 	if(xbp_initwindow(x, &root, &vinfo) < 0 || xbp_inittimer(x) < 0 ||
 	  xbp_initimage(x, &vinfo) < 0)
 		goto error;
@@ -153,7 +156,7 @@ static inline int xbp_resize(struct xbp *x, XConfigureEvent xce,
                                   void *data) {
 	XVisualInfo vinfo;
 	int depth = 24;
-	if(x->init <= 4 || xce.window != x->win ||
+	if(xce.window != x->win ||
 	  (xce.width == x->img->width && xce.height == x->img->height))
 		return 0;
 	XDestroyImage(x->img);
@@ -164,7 +167,6 @@ static inline int xbp_resize(struct xbp *x, XConfigureEvent xce,
 		XBP_ERRPRINT("XMatchVisualInfo: no such visual");
 		return -1;
 	}
-	x->init--;
 	xbp_initimage(x, &vinfo);
 	if(resize != NULL && resize(x, data) < 0)
 		return -1;
@@ -234,18 +236,16 @@ error:
 }
 
 void xbp_cleanup(struct xbp *x) {
-	if(x == NULL || x->disp == NULL)
-		return;
-	if(x->init > 5)
+	if(x->img != NULL)
 		XDestroyImage(x->img);
-	if(x->init > 4)
+	if(x->timerid != 0)
 		timer_delete(x->timerid);
-	if(x->init > 3)
+	if(x->gc_set == true)
 		XFreeGC(x->disp, x->gc);
-	if(x->init > 2)
+	if(x->win_set == true)
 		XDestroyWindow(x->disp, x->win);
-	if(x->init > 1)
+	if(x->cmap_set == true)
 		XFreeColormap(x->disp, x->cmap);
-	if(x->init > 0)
+	if(x->disp != NULL)
 		XCloseDisplay(x->disp);
 }
