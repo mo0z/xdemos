@@ -37,6 +37,7 @@ struct xbp {
 	XImage *img;
 	timer_t timerid;
 	unsigned int depth;
+	void *data;
 
 	struct xbp_config {
 		size_t max_fps;
@@ -48,16 +49,16 @@ struct xbp {
 };
 
 struct xbp_callbacks {
-	int (*update)(struct xbp*, void*);
-	int (*resize)(struct xbp*, void*);
+	int (*update)(struct xbp*);
+	int (*resize)(struct xbp*);
 	struct xbp_listener {
 		int event;
-		int (*callback)(struct xbp*, XEvent*, void*);
+		int (*callback)(struct xbp*, XEvent*);
 	} **listeners; // NULL-terminated list
 };
 
 int xbp_init(struct xbp *x, const char *display_name);
-int xbp_main(struct xbp *x, struct xbp_callbacks callbacks, void *data);
+int xbp_main(struct xbp *x, struct xbp_callbacks callbacks);
 
 static inline void xbp_set_pixel(XImage *img, int x, int y,
                                  unsigned long color) {
@@ -68,6 +69,9 @@ static inline void xbp_set_pixel(XImage *img, int x, int y,
 	for(i = 0; i < img->bits_per_pixel / CHAR_BIT; i++)
 		img->data[px + i] = ((unsigned char*)&color)[i];
 }
+
+#define xbp_set_data(x, d) do { (x)->data = (d); } while(0)
+#define xbp_get_data(x) ((x)->data)
 
 void xbp_cleanup(struct xbp *x);
 

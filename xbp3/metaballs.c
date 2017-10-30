@@ -95,8 +95,8 @@ static inline float rsqrt(float n) {
 	return n;
 }
 
-static inline int action(struct xbp *x, XEvent *ev, void *data) {
-	struct metaballs *m = data;
+static inline int action(struct xbp *x, XEvent *ev) {
+	struct metaballs *m = xbp_get_data(x);
 	size_t i;
 	float rnd, mult, hue, rgb[3] = { 0.0, 0.0, 0.0 };
 	m->dist_cache[0] = (float)INT_MAX;
@@ -119,8 +119,8 @@ static inline int action(struct xbp *x, XEvent *ev, void *data) {
 	(void)ev;
 }
 
-int update(struct xbp *x, void *data) {
-	register struct metaballs *m = data;
+int update(struct xbp *x) {
+	register struct metaballs *m = xbp_get_data(x);
 	register size_t i;
 	register int px, py;
 	struct timespec frame_start, frame_end;
@@ -155,8 +155,8 @@ int update(struct xbp *x, void *data) {
 	return 0;
 }
 
-int resize(struct xbp *x, void *data) {
-	struct metaballs *m = data;
+int resize(struct xbp *x) {
+	struct metaballs *m = xbp_get_data(x);
 	float fx, fy;
 	size_t i, l;
 	m->dist_cache = realloc(
@@ -218,6 +218,7 @@ int main(void) {
 	int speed_mod, ret = EXIT_FAILURE;
 	size_t i;
 	srand(time(NULL));
+	xbp_set_data(&x, &m);
 	if(xbp_init(&x, NULL) < 0)
 		return EXIT_FAILURE;
 	m.dist_cache = NULL;
@@ -232,9 +233,9 @@ int main(void) {
 		m.balls[i].speed_x = random() % speed_mod;
 		m.balls[i].speed_y = random() % speed_mod;
 	}
-	if(resize(&x, &m) < 0)
+	if(resize(&x) < 0)
 		goto error;
-	action(&x, NULL, &m);
+	action(&x, NULL);
 	if(clock_gettime(CLOCK_MONOTONIC, &m.total_runtime) < 0) {
 		XBP_ERRPRINT("Error: clock_gettime");
 		goto error;
@@ -249,7 +250,7 @@ int main(void) {
 			},
 			NULL,
 		},
-	}, &m) == 0 &&
+	}) == 0 &&
 	  print_stats(&m) == 0)
 		ret = EXIT_SUCCESS;
 error:

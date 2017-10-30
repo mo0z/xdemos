@@ -10,10 +10,10 @@
 #define OFFSET_TYPE uint16_t
 #define OFFSET_MAX 1023
 
-int update(struct xbp *x, void *data) {
+int update(struct xbp *x) {
 	float rgb[4] = { .0 };
 	int px, py;
-	OFFSET_TYPE *offset = data;
+	OFFSET_TYPE *offset = xbp_get_data(x);
 	uint8_t xor_value;
 	for(py = 0; py < x->img->height; py++)
 		for(px = 0; px < x->img->width; px++) {
@@ -41,9 +41,10 @@ int main(void) {
 	};
 	int ret = EXIT_FAILURE;
 	OFFSET_TYPE offset = 0;
+	xbp_set_data(&x, &offset);
 	if(xbp_init(&x, NULL) < 0)
 		return EXIT_FAILURE;
-	if(xbp_main(&x, (struct xbp_callbacks){.update = update}, &offset) == 0)
+	if(xbp_main(&x, (struct xbp_callbacks){.update = update}) == 0)
 		ret = EXIT_SUCCESS;
 	xbp_cleanup(&x);
 	return ret;
