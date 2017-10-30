@@ -33,8 +33,10 @@ struct xbp {
 	Colormap cmap;
 	Window win;
 	GC gc;
+	Visual visual;
 	XImage *img;
 	timer_t timerid;
+	unsigned int depth;
 
 	struct xbp_config {
 		size_t max_fps;
