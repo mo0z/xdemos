@@ -29,13 +29,13 @@
 
 struct xbp {
 	Display *disp;
-	int scr;
 	Colormap cmap;
 	Window win;
 	GC gc;
 	Visual visual;
 	XImage *img;
 	timer_t timerid;
+	int scr, win_rect[4];
 	unsigned int depth;
 	void *data;
 

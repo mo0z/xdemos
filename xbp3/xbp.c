@@ -24,15 +24,10 @@
 static bool xbp_timer = false;
 
 static inline int xbp_initimage(struct xbp *x) {
-	XWindowAttributes attr;
-	if(XGetWindowAttributes(x->disp, x->win, &attr) == 0) {
-		XBP_ERRPRINT("Error: XGetWindowAttributes failed");
-		return -1;
-	}
 	if(x->img != NULL)
 		XDestroyImage(x->img);
 	x->img = XCreateImage(x->disp, &x->visual, x->depth, ZPixmap, 0, NULL,
-	                      attr.width, attr.height, 8, 0);
+	                      x->win_rect[2], x->win_rect[3], 8, 0);
 	x->img->data = malloc(x->img->bits_per_pixel / CHAR_BIT *
 	                      x->img->width * x->img->height);
 	if(x->img->data == NULL) {
@@ -54,21 +49,21 @@ static inline long xbp_event_mask(struct xbp *x) {
 
 static inline int xbp_initwindow(struct xbp *x, Window *root) {
 	XWindowAttributes root_attr;
-	int width = 0, height = 0;
+	x->win_rect[0] = x->win_rect[1] = x->win_rect[2] = x->win_rect[3] = 0;
 	if(XGetWindowAttributes(x->disp, *root, &root_attr) == 0) {
 		XBP_ERRPRINT("XGetWindowAttributes failed");
 		return -1;
 	}
 	if(x->config.fullscreen == false) {
-		width = x->config.width;
-		height = x->config.height;
+		x->win_rect[2] = x->config.width;
+		x->win_rect[3] = x->config.height;
 	}
-	if(width <= 0 || width > root_attr.width)
-		width = root_attr.width;
-	if(height <= 0 || height > root_attr.height)
-		height = root_attr.height;
+	if(x->win_rect[2] <= 0 || x->win_rect[2] > root_attr.width)
+		x->win_rect[2] = root_attr.width;
+	if(x->win_rect[3] <= 0 || x->win_rect[3] > root_attr.height)
+		x->win_rect[3] = root_attr.height;
 	x->win = XCreateWindow(x->disp, *root,
-		0, 0, width, height,
+		x->win_rect[0], x->win_rect[1], x->win_rect[2], x->win_rect[3],
 		0, x->depth, InputOutput, &x->visual,
 		CWBackPixel | CWColormap | CWBorderPixel | CWEventMask | (
 			x->config.fullscreen == true ? CWOverrideRedirect : 0
@@ -164,19 +159,8 @@ error:
 }
 
 static inline int xbp_resize(struct xbp *x, XConfigureEvent xce) {
-	XVisualInfo vinfo;
-	int depth = 24;
-	if(xce.window != x->win ||
-	  (xce.width == x->img->width && xce.height == x->img->height))
+	if(xce.width == x->win_rect[2] && xce.height == x->win_rect[3])
 		return 0;
-	XDestroyImage(x->img);
-	x->img = NULL;
-	if(x->config.alpha == true)
-		depth = 32;
-	if(XMatchVisualInfo(x->disp, x->scr, depth, TrueColor, &vinfo) == 0) {
-		XBP_ERRPRINT("XMatchVisualInfo: no such visual");
-		return -1;
-	}
 	xbp_initimage(x);
 	if(x->callbacks.resize != NULL && x->callbacks.resize(x) < 0)
 		return -1;
