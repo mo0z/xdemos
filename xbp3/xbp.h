@@ -34,18 +34,27 @@ struct xbp {
 	Window win;
 	GC gc;
 	Visual visual;
-	XImage *img;
+	union {
+		struct {
+			XImage *img;
+			size_t img_allo;
+			void *data;
+		} i;
+		Pixmap pixmap;
+	} u;
 	timer_t timerid;
-	size_t img_allo;
 	int scr, win_rect[4], old_rect[4];
 	unsigned int depth;
-	void *data;
 
 	struct xbp_config {
 		size_t max_fps;
 		long event_mask;
 		int width, height;
 		unsigned char fullscreen: 1, alpha: 1, defaultkeys: 1;
+		enum {
+			XBP_IMAGE,
+			XBP_PIXMAP,
+		} mode;
 	} config;
 	struct xbp_callbacks {
 		int (*update)(struct xbp*);
@@ -55,7 +64,8 @@ struct xbp {
 			int (*callback)(struct xbp*, XEvent*);
 		} **listeners; // NULL-terminated list
 	} callbacks;
-	unsigned char running: 1, gc_set: 1, cmap_set: 1, win_set: 1, fullscreen: 1;
+	unsigned char running: 1, gc_set: 1, cmap_set: 1, win_set: 1, fullscreen: 1,
+		img_set: 1;
 };
 
 int xbp_fullscreen(struct xbp *x);
@@ -89,8 +99,9 @@ static inline void xbp_set_pixel(XImage *img, int x, int y,
 	}
 }
 
-#define xbp_set_data(x, d) do { (x)->data = (d); } while(0)
-#define xbp_get_data(x) ((x)->data)
+#define xbp_set_data(x, d) do { (x)->u.i.data = (d); } while(0)
+#define xbp_get_data(x) ((x)->u.i.data)
+#define xbp_ximage(x) ((x)->u.i.img)
 
 void xbp_cleanup(struct xbp *x);
 

@@ -15,12 +15,12 @@ int update(struct xbp *x) {
 	int px, py;
 	OFFSET_TYPE *offset = xbp_get_data(x);
 	uint8_t xor_value;
-	for(py = 0; py < x->img->height; py++)
-		for(px = 0; px < x->img->width; px++) {
+	for(py = 0; py < xbp_ximage(x)->height; py++)
+		for(px = 0; px < xbp_ximage(x)->width; px++) {
 			xor_value = (px ^ py) + (*offset & 0xff);
 			hsv_to_rgb(rgb, (float)*offset / OFFSET_MAX, 1.0,
 			           (float)xor_value / 255);
-			xbp_set_pixel(x->img, px, py,
+			xbp_set_pixel(xbp_ximage(x), px, py,
 				(int)(rgb[0] * 0xff) | ((int)(rgb[1] * 0xff) << 8) |
 				((int)(rgb[2] * 0xff) << 16) | (0xff << 24)
 			);
@@ -38,6 +38,7 @@ int main(void) {
 			.fullscreen = true,
 			.alpha = false,
 			.defaultkeys = true,
+			.mode = XBP_IMAGE,
 		},
 		.callbacks = {
 			.update = update,

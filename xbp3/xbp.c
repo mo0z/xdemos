@@ -24,24 +24,39 @@
 static bool xbp_timer = false;
 
 static inline int xbp_initimage(struct xbp *x) {
-	if(x->img != NULL) {
-		if((size_t)x->win_rect[2] * (size_t)x->win_rect[3] <= x->img_allo) {
-			x->img->width = x->win_rect[2];
-			x->img->height = x->win_rect[3];
+	if(x->img_set == true) {
+		if((size_t)x->win_rect[2] * (size_t)x->win_rect[3] <= x->u.i.img_allo) {
+			x->u.i.img->width = x->win_rect[2];
+			x->u.i.img->height = x->win_rect[3];
 			return 0;
 		}
-		XDestroyImage(x->img);
+		XDestroyImage(x->u.i.img);
 	}
-	x->img = XCreateImage(x->disp, &x->visual, x->depth, ZPixmap, 0, NULL,
+	x->u.i.img = XCreateImage(x->disp, &x->visual, x->depth, ZPixmap, 0, NULL,
 	                      x->win_rect[2], x->win_rect[3], 8, 0);
-	x->img->data = malloc(x->img->bits_per_pixel / CHAR_BIT *
-	                      x->img->width * x->img->height);
-	if(x->img->data == NULL) {
+	x->u.i.img->data = malloc(x->u.i.img->bits_per_pixel / CHAR_BIT *
+	                      x->u.i.img->width * x->u.i.img->height);
+	if(x->u.i.img->data == NULL) {
 		perror("malloc");
-		XDestroyImage(x->img);
+		XDestroyImage(x->u.i.img);
 		return -1;
 	}
-	x->img_allo = x->img->width * x->img->height;
+	x->u.i.img_allo = x->u.i.img->width * x->u.i.img->height;
+	return 0;
+}
+
+static inline int xbp_initpixmap(struct xbp *x) {
+	unsigned int current_x, current_y;
+	if(x->img_set == true) {
+		XGetGeometry(x->disp, x->u.pixmap, NULL,
+			NULL, NULL, &current_x, &current_y, NULL, NULL);
+		if((unsigned)x->win_rect[2] == current_x &&
+		  (unsigned)x->win_rect[3] == current_y)
+			return 0;
+		XFreePixmap(x->disp, x->u.pixmap);
+	}
+	x->u.pixmap = XCreatePixmap(x->disp, x->win,
+	                              x->win_rect[2], x->win_rect[3], x->depth);
 	return 0;
 }
 
@@ -165,13 +180,14 @@ int xbp_init(struct xbp *x, const char *display_name) {
 	int depth = 24;
 	if(x == NULL)
 		return -1;
-	x->img = NULL;
+	x->u.i.img = NULL;
 	x->timerid = 0;
-	x->img_allo = 0;
+	x->u.i.img_allo = 0;
 	x->win_set = false;
 	x->gc_set = false;
 	x->cmap_set = false;
 	x->fullscreen = false;
+	x->img_set = false;
 	x->disp = XOpenDisplay(display_name);
 	if(x->disp == NULL) {
 		XBP_ERRPRINT("failed to open Display");
@@ -189,9 +205,16 @@ int xbp_init(struct xbp *x, const char *display_name) {
 	root = RootWindow(x->disp, x->scr);
 	x->cmap = XCreateColormap(x->disp, root, vinfo.visual, AllocNone);
 	x->cmap_set = true;
-	if(xbp_initwindow(x, &root) < 0 || xbp_inittimer(x) < 0 ||
-	  xbp_initimage(x) < 0)
+	if(xbp_initwindow(x, &root) < 0 || xbp_inittimer(x) < 0)
 		goto error;
+	if(x->config.mode == XBP_PIXMAP) {
+		if(xbp_initpixmap(x) < 0)
+			goto error;
+	} else {
+		if(xbp_initimage(x) < 0)
+			goto error;
+	}
+	x->img_set = true;
 	return 0;
 error:
 	xbp_cleanup(x);
@@ -256,8 +279,8 @@ int xbp_main(struct xbp *x) {
 		xbp_timer = false;
 		if(x->callbacks.update != NULL && x->callbacks.update(x) < 0)
 			goto error;
-		XPutImage(x->disp, x->win, x->gc, x->img,
-		          0, 0, 0, 0, x->img->width, x->img->height);
+		XPutImage(x->disp, x->win, x->gc, x->u.i.img,
+		          0, 0, 0, 0, x->u.i.img->width, x->u.i.img->height);
 		if(xbp_handle(x) < 0)
 			goto error;
 	} while(x->running == true);
@@ -269,8 +292,12 @@ error:
 }
 
 void xbp_cleanup(struct xbp *x) {
-	if(x->img != NULL)
-		XDestroyImage(x->img);
+	if(x->img_set == true) {
+		if(x->config.mode == XBP_PIXMAP)
+			XFreePixmap(x->disp, x->u.pixmap);
+		else
+			XDestroyImage(x->u.i.img);
+	}
 	if(x->timerid != 0)
 		timer_delete(x->timerid);
 	if(x->gc_set == true)
