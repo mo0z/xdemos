@@ -12,6 +12,7 @@
 
 #include <limits.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 
@@ -68,8 +69,24 @@ static inline void xbp_set_pixel(XImage *img, int x, int y,
 	if(x < 0 || x > img->width || y < 0 || y > img->height)
 		return;
 	px = img->bytes_per_line * y + x * img->bits_per_pixel / CHAR_BIT;
-	for(i = 0; i < img->bits_per_pixel / CHAR_BIT; i++)
-		img->data[px + i] = ((unsigned char*)&color)[i];
+	switch(img->bits_per_pixel) {
+	case sizeof(uint8_t):
+		img->data[px] = color;
+		break;
+	case sizeof(uint16_t):
+		*(uint16_t*)&img->data[px] = color;
+		break;
+	case sizeof(uint32_t):
+		*(uint32_t*)&img->data[px] = color;
+		break;
+	case sizeof(uint64_t):
+		*(uint64_t*)&img->data[px] = color;
+		break;
+	default:
+		for(i = 0; i < img->bits_per_pixel / CHAR_BIT; i++)
+			img->data[px + i] = ((unsigned char*)&color)[i];
+		break;
+	}
 }
 
 #define xbp_set_data(x, d) do { (x)->data = (d); } while(0)
