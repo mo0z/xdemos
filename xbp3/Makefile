@@ -5,10 +5,11 @@ CFLAGS += -D_DEFAULT_SOURCE $(PROD_CFLAGS)
 LDFLAGS += $(PROD_LDFLAGS)
 LDLIBS += -lX11 -lm -lrt
 
-all: metaballs xor
+all: metaballs xor voronoi
 
 metaballs: metaballs.o xbp.o
 xor: xor.o xbp.o
+voronoi: voronoi.o xbp.o
 
 include ../global.mk
 
