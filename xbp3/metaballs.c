@@ -225,7 +225,7 @@ int main(void) {
 			.fullscreen = false,
 			.alpha = true,
 			.defaultkeys = true,
-			.mode = XBP_IMAGE,
+			.image = true,
 		},
 		.callbacks = {
 			.update = update,

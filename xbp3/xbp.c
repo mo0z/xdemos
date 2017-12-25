@@ -24,6 +24,8 @@
 static bool xbp_timer = false;
 
 static inline int xbp_initimage(struct xbp *x) {
+	if(x->config.image == false)
+		return 0;
 	if(x->img_set == true) {
 		if((size_t)x->win_rect[2] * (size_t)x->win_rect[3] <= x->u.i.img_allo) {
 			x->u.i.img->width = x->win_rect[2];
@@ -42,21 +44,7 @@ static inline int xbp_initimage(struct xbp *x) {
 		return -1;
 	}
 	x->u.i.img_allo = x->u.i.img->width * x->u.i.img->height;
-	return 0;
-}
-
-static inline int xbp_initpixmap(struct xbp *x) {
-	unsigned int current_x, current_y;
-	if(x->img_set == true) {
-		XGetGeometry(x->disp, x->u.pixmap, NULL,
-			NULL, NULL, &current_x, &current_y, NULL, NULL);
-		if((unsigned)x->win_rect[2] == current_x &&
-		  (unsigned)x->win_rect[3] == current_y)
-			return 0;
-		XFreePixmap(x->disp, x->u.pixmap);
-	}
-	x->u.pixmap = XCreatePixmap(x->disp, x->win,
-	                              x->win_rect[2], x->win_rect[3], x->depth);
+	x->img_set = true;
 	return 0;
 }
 
@@ -205,16 +193,9 @@ int xbp_init(struct xbp *x, const char *display_name) {
 	root = RootWindow(x->disp, x->scr);
 	x->cmap = XCreateColormap(x->disp, root, vinfo.visual, AllocNone);
 	x->cmap_set = true;
-	if(xbp_initwindow(x, &root) < 0 || xbp_inittimer(x) < 0)
+	if(xbp_initwindow(x, &root) < 0 || xbp_inittimer(x) < 0 ||
+	  xbp_initimage(x) < 0)
 		goto error;
-	if(x->config.mode == XBP_PIXMAP) {
-		if(xbp_initpixmap(x) < 0)
-			goto error;
-	} else {
-		if(xbp_initimage(x) < 0)
-			goto error;
-	}
-	x->img_set = true;
 	return 0;
 error:
 	xbp_cleanup(x);
@@ -279,8 +260,9 @@ int xbp_main(struct xbp *x) {
 		xbp_timer = false;
 		if(x->callbacks.update != NULL && x->callbacks.update(x) < 0)
 			goto error;
-		XPutImage(x->disp, x->win, x->gc, x->u.i.img,
-		          0, 0, 0, 0, x->u.i.img->width, x->u.i.img->height);
+		if(x->img_set)
+			XPutImage(x->disp, x->win, x->gc, x->u.i.img,
+					  0, 0, 0, 0, XBP_WIDTH(x), XBP_HEIGHT(x));
 		if(xbp_handle(x) < 0)
 			goto error;
 	} while(x->running == true);
@@ -292,12 +274,8 @@ error:
 }
 
 void xbp_cleanup(struct xbp *x) {
-	if(x->img_set == true) {
-		if(x->config.mode == XBP_PIXMAP)
-			XFreePixmap(x->disp, x->u.pixmap);
-		else
-			XDestroyImage(x->u.i.img);
-	}
+	if(x->img_set == true)
+		XDestroyImage(x->u.i.img);
 	if(x->timerid != 0)
 		timer_delete(x->timerid);
 	if(x->gc_set == true)

@@ -38,7 +38,7 @@ int main(void) {
 			.fullscreen = true,
 			.alpha = false,
 			.defaultkeys = true,
-			.mode = XBP_IMAGE,
+			.image = true,
 		},
 		.callbacks = {
 			.update = update,

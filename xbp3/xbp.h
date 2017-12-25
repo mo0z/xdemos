@@ -28,6 +28,9 @@
 
 #define XBP_BILLION (1000 * 1000 * 1000)
 
+#define XBP_WIDTH(x) ((x)->win_rect[2])
+#define XBP_HEIGHT(x) ((x)->win_rect[3])
+
 struct xbp {
 	Display *disp;
 	Colormap cmap;
@@ -51,10 +54,7 @@ struct xbp {
 		long event_mask;
 		int width, height;
 		unsigned char fullscreen: 1, alpha: 1, defaultkeys: 1;
-		enum {
-			XBP_IMAGE,
-			XBP_PIXMAP,
-		} mode;
+		bool image;
 	} config;
 	struct xbp_callbacks {
 		int (*update)(struct xbp*);
