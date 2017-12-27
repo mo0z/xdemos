@@ -31,6 +31,8 @@
 #define XBP_WIDTH(x) ((x)->win_rect[2])
 #define XBP_HEIGHT(x) ((x)->win_rect[3])
 
+#define XBP_MAX_COLOR UINT16_MAX
+
 struct xbp {
 	Display *disp;
 	Colormap cmap;
@@ -71,6 +73,10 @@ struct xbp {
 int xbp_fullscreen(struct xbp *x);
 int xbp_fullscreen_leave(struct xbp *x);
 int xbp_init(struct xbp *x, const char *display_name);
+unsigned long xbp_rgb(struct xbp *x, unsigned short red,
+                      unsigned short green, unsigned short blue);
+#define xbp_rgb8(x, r, g, b) (xbp_rgb((x), ((r) << 8), ((g) << 8), ((b) << 8)))
+
 int xbp_main(struct xbp *x);
 
 static inline void xbp_set_pixel(XImage *img, int x, int y,

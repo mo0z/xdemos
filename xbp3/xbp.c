@@ -202,6 +202,19 @@ error:
 	return -1;
 }
 
+unsigned long xbp_rgb(struct xbp *x, unsigned short red,
+                      unsigned short green, unsigned short blue) {
+	XColor c = {
+		.red = red,
+		.green = green,
+		.blue = blue,
+		.flags = DoRed|DoGreen|DoBlue,
+	};
+	XAllocColor(x->disp, x->cmap, &c);
+	XFreeColors(x->disp, x->cmap, &c.pixel, 1, 0);
+	return c.pixel;
+}
+
 static inline int xbp_resize(struct xbp *x, XConfigureEvent xce) {
 	x->win_rect[0] = xce.x;
 	x->win_rect[1] = xce.y;
