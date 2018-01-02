@@ -38,22 +38,22 @@ static inline int between(double a, double b, double c) {
 
 static inline struct point point_add(const struct point a,
                                      const struct point b) {
-	return (struct point){a.x + b.x, a.y + b.y};
+	return (struct point){ a.x + b.x, a.y + b.y };
 }
 
 static inline struct point point_sub(const struct point a,
                                      const struct point b) {
-	return (struct point){a.x - b.x, a.y - b.y};
+	return (struct point){ a.x - b.x, a.y - b.y };
 }
 
 static inline struct point point_mul(const struct point a,
                                      const struct point b) {
-	return (struct point){a.x * b.x, a.y * b.y};
+	return (struct point){ a.x * b.x, a.y * b.y };
 }
 
 static inline struct point point_div(const struct point a,
                                      const struct point b) {
-	return (struct point){a.x / b.x, a.y / b.y};
+	return (struct point){ a.x / b.x, a.y / b.y };
 }
 
 static inline double point_abs(const struct point a) {
@@ -73,14 +73,19 @@ static inline int point_exact(const struct point a, char *s, size_t l) {
 }
 
 static inline struct polar point_to_polar(const struct point a) {
-	return (struct polar){point_abs(a), point_angle(a)};
+	return (struct polar){ point_abs(a), point_angle(a) };
 }
 
 static inline struct point polar_to_point(const struct polar a) {
-	return (struct point){cos(a.a * PI / 180) * a.r, sin(a.a * PI / 180) * a.r};
+	return (struct point){
+		cos(a.a * PI / 180) * a.r,
+		sin(a.a * PI / 180) * a.r,
+	};
 }
 
-static inline struct point point_rotated_at(const struct point center, const struct point other, double d) {
+static inline struct point point_rotated_at(const struct point center,
+                                            const struct point other,
+                                            double d) {
 	struct polar p = point_to_polar(point_sub(other, center));
 	p.a += d;
 	return point_add(center, polar_to_point(p));
@@ -100,10 +105,11 @@ static inline int point_cross(const struct point p1, const struct point p2,
 			factor = (rq1.y - p1.y) / delta.y;
 			x -= delta.x * factor;
 		}
-		if(between(x - p1.x, 0, p.r)) {
-			*result = point_rotated_at(p1, (struct point){x, p1.y}, p.a);
-			return 1;
-		}
+		if(between(x - p1.x, 0, p.r) == 0)
+			return 0;
+		if(result != NULL)
+			*result = point_rotated_at(p1, (struct point){ x, p1.y }, p.a);
+		return 1;
 	}
 	return 0;
 }
