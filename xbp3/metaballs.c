@@ -22,8 +22,8 @@
 #define LIMIT(x, l) (((x) > (l)) ? (l) : (x))
 #define DIST_MULT(w) (w)
 #define NUM_BALLS 10
-#define RADIUS_LOW(w)  ((w) / 40)
-#define RADIUS_HIGH(w) ((w) / 16)
+#define RADIUS_LOW(w)  ((w) / 20)
+#define RADIUS_HIGH(w) ((w) / 8)
 #define MAX_SPEED(w) (w / 80)
 #define MAX_DIST (256.0 * NUM_BALLS)
 
@@ -111,20 +111,20 @@ int update(struct xbp *x) {
 	xbp_time_frame_start(&m->xt);
 	for(i = 0; i < NUM_BALLS; i++) {
 		m->balls[i].x += m->balls[i].speed_x;
-		if(m->balls[i].x < 0 || m->balls[i].x >= xbp_ximage(x)->width) {
+		if(m->balls[i].x < 0 || m->balls[i].x >= XBP_WIDTH(x)) {
 			m->balls[i].speed_x *= -1;
 			m->balls[i].x += m->balls[i].speed_x;
 		}
 		m->balls[i].y += m->balls[i].speed_y;
-		if(m->balls[i].y < 0 || m->balls[i].y >= xbp_ximage(x)->height) {
+		if(m->balls[i].y < 0 || m->balls[i].y >= XBP_HEIGHT(x)) {
 			m->balls[i].speed_y *= -1;
 			m->balls[i].y += m->balls[i].speed_y;
 		}
 	}
-	for(py = 0; py < xbp_ximage(x)->height; py++)
-		for(px = 0; px < xbp_ximage(x)->width; px++)
+	for(py = 0; py < XBP_HEIGHT(x); py++)
+		for(px = 0; px < XBP_WIDTH(x); px++)
 			xbp_set_pixel(xbp_ximage(x), px, py, m->rgb_cache[
-				metaballs_dist(m, px, py, xbp_ximage(x)->width)
+				metaballs_dist(m, px, py, XBP_WIDTH(x))
 			]);
 	xbp_time_frame_end(&m->xt);
 	return 0;
@@ -136,28 +136,27 @@ int resize(struct xbp *x) {
 	size_t i, j, l;
 	m->dist_cache = realloc(
 		m->dist_cache,
-		xbp_ximage(x)->width * xbp_ximage(x)->height *
-			sizeof *m->dist_cache * NUM_BALLS
+		XBP_WIDTH(x) * XBP_HEIGHT(x) * sizeof *m->dist_cache * NUM_BALLS
 	);
 	if(m->dist_cache == NULL) {
 		perror("realloc");
 		return -1;
 	}
-	l = xbp_ximage(x)->width * xbp_ximage(x)->height;
+	l = XBP_WIDTH(x) * XBP_HEIGHT(x);
 	for(j = 0; j < NUM_BALLS; j++)
 		m->dist_cache[j * l] = (float)INT_MAX;
 	for(i = 1; i < l; i++) {
-		fx = i % xbp_ximage(x)->width;
-		fy = i / xbp_ximage(x)->height;
+		fx = i % XBP_WIDTH(x);
+		fy = i / XBP_HEIGHT(x);
 		dist = rsqrt(fx * fx + fy * fy);
 		for(j = 0; j < NUM_BALLS; j++)
-			m->dist_cache[j * l + i] = dist * DIST_MULT(xbp_ximage(x)->width);
+			m->dist_cache[j * l + i] = dist * DIST_MULT(XBP_WIDTH(x));
 	}
 	for(i = 0; i < NUM_BALLS; i++) {
-		if(m->balls[i].x > xbp_ximage(x)->width)
-			m->balls[i].x = xbp_ximage(x)->width - 1;
-		if(m->balls[i].y > xbp_ximage(x)->height)
-			m->balls[i].y = xbp_ximage(x)->height - 1;
+		if(m->balls[i].x > XBP_WIDTH(x))
+			m->balls[i].x = XBP_WIDTH(x) - 1;
+		if(m->balls[i].y > XBP_HEIGHT(x))
+			m->balls[i].y = XBP_HEIGHT(x) - 1;
 	}
 	return 0;
 }
@@ -195,17 +194,16 @@ int main(void) {
 		return EXIT_FAILURE;
 	xbp_set_data(&x, &m);
 	m.dist_cache = NULL;
-	speed_mod = (2 * MAX_SPEED(xbp_ximage(&x)->width)) -
-		MAX_SPEED(xbp_ximage(&x)->width);
+	speed_mod = MAX_SPEED(XBP_WIDTH(&x));
 	for(i = 0; i < NUM_BALLS; i++) {
 		m.balls[i].radius = (float)(
-			RADIUS_LOW(xbp_ximage(&x)->width) + random() % (
-				RADIUS_HIGH(xbp_ximage(&x)->width) -
-				RADIUS_LOW(xbp_ximage(&x)->width)
+			RADIUS_LOW(XBP_WIDTH(&x)) + random() % (
+				RADIUS_HIGH(XBP_WIDTH(&x)) -
+				RADIUS_LOW(XBP_WIDTH(&x))
 			)
 		) / NUM_BALLS;
-		m.balls[i].x = random() % xbp_ximage(&x)->width;
-		m.balls[i].y = random() % xbp_ximage(&x)->height;
+		m.balls[i].x = random() % XBP_WIDTH(&x);
+		m.balls[i].y = random() % XBP_HEIGHT(&x);
 		m.balls[i].speed_x = random() % speed_mod;
 		m.balls[i].speed_y = random() % speed_mod;
 	}
