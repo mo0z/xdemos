@@ -26,8 +26,6 @@
 	fprintf(stderr, "%s:%d: %s()\n", __FILE__, __LINE__, __func__); \
 } while(0);
 
-#define XBP_BILLION (1000 * 1000 * 1000)
-
 #define XBP_WIDTH(x) ((x)->win_rect[2])
 #define XBP_HEIGHT(x) ((x)->win_rect[3])
 
@@ -75,7 +73,8 @@ int xbp_fullscreen_leave(struct xbp *x);
 int xbp_init(struct xbp *x, const char *display_name);
 unsigned long xbp_rgb(struct xbp *x, unsigned short red,
                       unsigned short green, unsigned short blue);
-#define xbp_rgb8(x, r, g, b) (xbp_rgb((x), ((r) << 8), ((g) << 8), ((b) << 8)))
+#define xbp_rgb8(x, r, g, b) \
+	(xbp_rgb((x), ((int)(r) << 8), ((int)(g) << 8), ((int)(b) << 8)))
 
 int xbp_main(struct xbp *x);
 

@@ -17,6 +17,7 @@
 
 #include "hsv.h"
 #include "xbp.h"
+#include "xbp_time.h"
 
 #define LIMIT(x, l) (((x) > (l)) ? (l) : (x))
 #define DIST_MULT(w) (w)
@@ -27,6 +28,7 @@
 #define MAX_DIST (256.0 * NUM_BALLS)
 
 struct metaballs {
+	struct xbp_time xt;
 	struct {
 		float radius;
 		int x, y;
@@ -37,34 +39,6 @@ struct metaballs {
 	struct timespec total_frametime, total_runtime;
 	size_t num_frames;
 };
-
-
-static inline struct timespec timespec_add(struct timespec ts1,
-                                           struct timespec ts2) {
-	register struct timespec result = ts1;
-	register long sec;
-
-	result.tv_nsec += ts2.tv_nsec;
-	result.tv_sec += ts2.tv_sec;
-
-	if(result.tv_nsec >= XBP_BILLION) {
-		result.tv_sec += result.tv_nsec / XBP_BILLION;
-		result.tv_nsec %= XBP_BILLION;
-	}
-	if(result.tv_nsec < 0) {
-		sec = 1 + -(result.tv_nsec / XBP_BILLION);
-		result.tv_nsec += XBP_BILLION * sec;
-		result.tv_sec -= sec;
-	}
-	return result;
-}
-
-static inline struct timespec timespec_diff(struct timespec ts1,
-                                            struct timespec ts2) {
-	ts2.tv_sec *= -1;
-	ts2.tv_nsec *= -1;
-	return timespec_add(ts1, ts2);
-}
 
 #define ABS(x) ((x) < 0 ? -(x) : (x))
 
@@ -134,11 +108,7 @@ int update(struct xbp *x) {
 	register struct metaballs *m = xbp_get_data(x);
 	register size_t i;
 	register int px, py;
-	struct timespec frame_start, frame_end;
-	if(clock_gettime(CLOCK_MONOTONIC, &frame_start) < 0) {
-		XBP_ERRPRINT("Error: clock_gettime");
-		return -1;
-	}
+	xbp_time_frame_start(&m->xt);
 	for(i = 0; i < NUM_BALLS; i++) {
 		m->balls[i].x += m->balls[i].speed_x;
 		if(m->balls[i].x < 0 || m->balls[i].x >= xbp_ximage(x)->width) {
@@ -156,13 +126,7 @@ int update(struct xbp *x) {
 			xbp_set_pixel(xbp_ximage(x), px, py, m->rgb_cache[
 				metaballs_dist(m, px, py, xbp_ximage(x)->width)
 			]);
-	if(clock_gettime(CLOCK_MONOTONIC, &frame_end) < 0) {
-		XBP_ERRPRINT("Error: clock_gettime");
-		return -1;
-	}
-	frame_end = timespec_diff(frame_end, frame_start);
-	m->total_frametime = timespec_add(m->total_frametime, frame_end);
-	m->num_frames++;
+	xbp_time_frame_end(&m->xt);
 	return 0;
 }
 
@@ -198,24 +162,6 @@ int resize(struct xbp *x) {
 	return 0;
 }
 
-static inline int print_stats(struct metaballs *m) {
-	struct timespec ts;
-	if(clock_gettime(CLOCK_MONOTONIC, &ts) < 0) {
-		XBP_ERRPRINT("Error: clock_gettime");
-		return -1;
-	}
-	m->total_runtime = timespec_diff(ts, m->total_runtime);
-	fprintf(stderr, "total runtime: %.2f\n", ((double)m->total_runtime.tv_sec
-	        + (double)m->total_runtime.tv_nsec / XBP_BILLION));
-	fprintf(stderr, "num frames: %zu\n", m->num_frames);
-	fprintf(stderr, "FPS: %.2f\n",
-		m->num_frames / ((double)m->total_runtime.tv_sec
-		+ (double)m->total_runtime.tv_nsec / XBP_BILLION));
-	fprintf(stderr, "time spent for calulation in total: %ld.%09ld\n",
-	        m->total_frametime.tv_sec, m->total_frametime.tv_nsec);
-	return 0;
-}
-
 int main(void) {
 	struct xbp x = {
 		.config = {
@@ -239,17 +185,15 @@ int main(void) {
 			},
 		},
 	};
-	struct metaballs m = {
-		.total_frametime = { 0, 0 },
-		.total_runtime = { 0, 0 },
-		.num_frames = 0,
-	};
+	struct metaballs m;
 	int speed_mod, ret = EXIT_FAILURE;
 	size_t i;
 	srand(time(NULL));
-	xbp_set_data(&x, &m);
+	if(xbp_time_init(&m.xt) < 0)
+		return EXIT_FAILURE;
 	if(xbp_init(&x, NULL) < 0)
 		return EXIT_FAILURE;
+	xbp_set_data(&x, &m);
 	m.dist_cache = NULL;
 	speed_mod = (2 * MAX_SPEED(xbp_ximage(&x)->width)) -
 		MAX_SPEED(xbp_ximage(&x)->width);
@@ -272,8 +216,7 @@ int main(void) {
 		XBP_ERRPRINT("Error: clock_gettime");
 		goto error;
 	}
-	if(xbp_main(&x) == 0 &&
-	  print_stats(&m) == 0)
+	if(xbp_main(&x) == 0 && xbp_time_print_stats(&m.xt) == 0)
 		ret = EXIT_SUCCESS;
 error:
 	free(m.dist_cache);

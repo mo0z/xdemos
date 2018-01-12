@@ -150,7 +150,7 @@ static inline int xbp_inittimer(struct xbp *x) {
 	if(max_fps == 1)
 		ts.tv_sec = 1;
 	else
-		ts.tv_nsec = XBP_BILLION / max_fps;
+		ts.tv_nsec = 1e9 / max_fps;
 	sigemptyset(&sa.sa_mask);
 	sigaction(FRAME_SIGNAL, &sa, NULL);
 	if(timer_create(CLOCK_MONOTONIC, NULL, &x->timerid) < 0)
