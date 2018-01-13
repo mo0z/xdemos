@@ -21,12 +21,12 @@
 
 #define FRAME_SIGNAL SIGALRM
 
-static bool xbp_timer = false;
+static char xbp_timer = 0;
 
 static inline int xbp_initimage(struct xbp *x) {
-	if(x->config.image == false)
+	if(!x->config.image)
 		return 0;
-	if(x->img_set == true) {
+	if(x->img_set) {
 		if((size_t)x->win_rect[2] * (size_t)x->win_rect[3] <= x->u.i.img_allo) {
 			x->u.i.img->width = x->win_rect[2];
 			x->u.i.img->height = x->win_rect[3];
@@ -44,7 +44,7 @@ static inline int xbp_initimage(struct xbp *x) {
 		return -1;
 	}
 	x->u.i.img_allo = x->u.i.img->width * x->u.i.img->height;
-	x->img_set = true;
+	x->img_set = 1;
 	return 0;
 }
 
@@ -64,15 +64,15 @@ int xbp_fullscreen(struct xbp *x) {
 		return -1;
 	XMoveResizeWindow(x->disp, x->win, 0, 0, attr.width, attr.height);
 	XRaiseWindow(x->disp, x->win);
-	x->fullscreen = true;
+	x->fullscreen = 1;
 	return 0;
 }
 
 static inline long xbp_event_mask(struct xbp *x) {
 	long event_mask = x->config.event_mask;
-	if(x->config.defaultkeys == true)
+	if(x->config.defaultkeys)
 		event_mask |= KeyPressMask;
-	if(x->fullscreen == false)
+	if(!x->fullscreen)
 		event_mask |= StructureNotifyMask;
 	return event_mask;
 }
@@ -81,7 +81,7 @@ int xbp_fullscreen_leave(struct xbp *x) {
 	XUngrabPointer(x->disp, CurrentTime);
 	XUngrabKeyboard(x->disp, CurrentTime);
 	XUnmapWindow(x->disp, x->win);
-	x->fullscreen = false;
+	x->fullscreen = 0;
 	XChangeWindowAttributes(x->disp, x->win, CWOverrideRedirect|CWEventMask,
 			&(XSetWindowAttributes){
 		.override_redirect = False,
@@ -103,7 +103,7 @@ static inline int xbp_initwindow(struct xbp *x, Window *root) {
 		XBP_ERRPRINT("XGetWindowAttributes failed");
 		return -1;
 	}
-	if(x->config.fullscreen == false) {
+	if(!x->config.fullscreen) {
 		x->win_rect[2] = x->config.width;
 		x->win_rect[3] = x->config.height;
 	}
@@ -122,11 +122,11 @@ static inline int xbp_initwindow(struct xbp *x, Window *root) {
 			.event_mask = xbp_event_mask(x),
 		}
 	);
-	x->win_set = true;
+	x->win_set = 1;
 	x->gc = XCreateGC(x->disp, x->win, 0, NULL);
-	x->gc_set = true;
+	x->gc_set = 1;
 	XMapWindow(x->disp, x->win);
-	if(x->config.fullscreen == true)
+	if(x->config.fullscreen)
 		return xbp_fullscreen(x);
 	return 0;
 }
@@ -171,18 +171,18 @@ int xbp_init(struct xbp *x, const char *display_name) {
 	x->u.i.img = NULL;
 	x->timerid = 0;
 	x->u.i.img_allo = 0;
-	x->win_set = false;
-	x->gc_set = false;
-	x->cmap_set = false;
-	x->fullscreen = false;
-	x->img_set = false;
+	x->win_set = 0;
+	x->gc_set = 0;
+	x->cmap_set = 0;
+	x->fullscreen = 0;
+	x->img_set = 0;
 	x->disp = XOpenDisplay(display_name);
 	if(x->disp == NULL) {
 		XBP_ERRPRINT("failed to open Display");
 		return -1;
 	}
 	x->scr = DefaultScreen(x->disp);
-	if(x->config.alpha == true)
+	if(x->config.alpha)
 		depth = 32;
 	if(XMatchVisualInfo(x->disp, x->scr, depth, TrueColor, &vinfo) == 0) {
 		XBP_ERRPRINT("XMatchVisualInfo: no such visual");
@@ -192,7 +192,7 @@ int xbp_init(struct xbp *x, const char *display_name) {
 	x->depth = vinfo.depth;
 	root = RootWindow(x->disp, x->scr);
 	x->cmap = XCreateColormap(x->disp, root, vinfo.visual, AllocNone);
-	x->cmap_set = true;
+	x->cmap_set = 1;
 	if(xbp_initwindow(x, &root) < 0 || xbp_inittimer(x) < 0 ||
 	  xbp_initimage(x) < 0)
 		goto error;
@@ -244,7 +244,7 @@ static inline int xbp_call_event_callbacks(struct xbp *x, XEvent *ev,
 static inline void xbp_keypress(struct xbp *x, XEvent *ev) {
 	KeySym keysym = XkbKeycodeToKeysym(x->disp, ev->xkey.keycode, 0, 0);
 	if(keysym == XK_q || keysym == XK_Escape)
-		x->running = false;
+		x->running = 0;
 }
 
 static inline int xbp_handle(struct xbp *x) {
@@ -253,7 +253,7 @@ static inline int xbp_handle(struct xbp *x) {
 		XNextEvent(x->disp, &ev);
 		if(ev.type == ConfigureNotify && xbp_resize(x, ev.xconfigure) < 0)
 			return -1;
-		if(x->config.defaultkeys == true && ev.type == KeyPress)
+		if(x->config.defaultkeys && ev.type == KeyPress)
 			xbp_keypress(x, &ev);
 		if(xbp_call_event_callbacks(x, &ev, x->callbacks.listeners) < 0)
 			return -1;
@@ -263,14 +263,14 @@ static inline int xbp_handle(struct xbp *x) {
 
 int xbp_main(struct xbp *x) {
 	int ret = -1;
-	xbp_timer = false;
-	x->running = true;
+	xbp_timer = 0;
+	x->running = 1;
 	do {
-		if(xbp_timer == false)
+		if(!xbp_timer)
 			sleep(1);
-		if(xbp_timer == false)
+		if(!xbp_timer)
 			continue;
-		xbp_timer = false;
+		xbp_timer = 0;
 		if(x->callbacks.update != NULL && x->callbacks.update(x) < 0)
 			goto error;
 		if(x->img_set)
@@ -278,24 +278,24 @@ int xbp_main(struct xbp *x) {
 					  0, 0, 0, 0, XBP_WIDTH(x), XBP_HEIGHT(x));
 		if(xbp_handle(x) < 0)
 			goto error;
-	} while(x->running == true);
+	} while(x->running);
 	ret = 0;
 error:
-	if(x->fullscreen == true)
+	if(x->fullscreen)
 		xbp_fullscreen_leave(x);
 	return ret;
 }
 
 void xbp_cleanup(struct xbp *x) {
-	if(x->img_set == true)
+	if(x->img_set)
 		XDestroyImage(x->u.i.img);
 	if(x->timerid != 0)
 		timer_delete(x->timerid);
-	if(x->gc_set == true)
+	if(x->gc_set)
 		XFreeGC(x->disp, x->gc);
-	if(x->win_set == true)
+	if(x->win_set)
 		XDestroyWindow(x->disp, x->win);
-	if(x->cmap_set == true)
+	if(x->cmap_set)
 		XFreeColormap(x->disp, x->cmap);
 	if(x->disp != NULL)
 		XCloseDisplay(x->disp);

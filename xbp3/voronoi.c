@@ -134,10 +134,10 @@ static inline size_t triangular(size_t stop) {
 int main(void) {
 	struct xbp x = {
 		.config = {
-			.fullscreen = true,
-			.alpha = false,
-			.defaultkeys = true,
-			.image = false,
+			.fullscreen = 1,
+			.alpha = 0,
+			.defaultkeys = 1,
+			.image = 0,
 		},
 		.callbacks = {
 			.update = update,

@@ -35,10 +35,10 @@ int update(struct xbp *x) {
 int main(void) {
 	struct xbp x = {
 		.config = {
-			.fullscreen = true,
-			.alpha = false,
-			.defaultkeys = true,
-			.image = true,
+			.fullscreen = 1,
+			.alpha = 0,
+			.defaultkeys = 1,
+			.image = 1,
 		},
 		.callbacks = {
 			.update = update,

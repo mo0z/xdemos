@@ -11,7 +11,6 @@
 #define XBP_H
 
 #include <limits.h>
-#include <stdbool.h>
 #include <stdint.h>
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
@@ -53,8 +52,7 @@ struct xbp {
 		size_t max_fps;
 		long event_mask;
 		int width, height;
-		unsigned char fullscreen: 1, alpha: 1, defaultkeys: 1;
-		bool image;
+		unsigned char fullscreen: 1, alpha: 1, defaultkeys: 1, image: 1;
 	} config;
 	struct xbp_callbacks {
 		int (*update)(struct xbp*);

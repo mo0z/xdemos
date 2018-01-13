@@ -78,7 +78,7 @@ int action(struct xbp *x, XEvent *ev) {
 	if(ev != NULL)
 		keysym = XkbKeycodeToKeysym(x->disp, ev->xkey.keycode, 0, 0);
 	if(keysym == XK_f) {
-		if(x->fullscreen == true)
+		if(x->fullscreen)
 			return xbp_fullscreen_leave(x);
 		else
 			return xbp_fullscreen(x);
@@ -167,10 +167,10 @@ int main(void) {
 			.width = 800,
 			.height = 600,
 			.max_fps = 0,
-			.fullscreen = false,
-			.alpha = true,
-			.defaultkeys = true,
-			.image = true,
+			.fullscreen = 0,
+			.alpha = 1,
+			.defaultkeys = 1,
+			.image = 1,
 		},
 		.callbacks = {
 			.update = update,
