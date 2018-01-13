@@ -24,7 +24,7 @@
 #define NUM_BALLS 10
 #define RADIUS_LOW(w)  ((w) / 20)
 #define RADIUS_HIGH(w) ((w) / 8)
-#define MAX_SPEED(w) (w / 80)
+#define MAX_SPEED(w) (w / 100)
 #define MAX_DIST (256.0 * NUM_BALLS)
 
 struct metaballs {
