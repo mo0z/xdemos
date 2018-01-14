@@ -1,7 +1,7 @@
 
-/* xrootgen.c
+/* hacks.c
  *
- * Copyright (c) 2016, mar77i <mar77i at protonmail dot ch>
+ * Copyright (c) 2016, 2018, mar77i <mar77i at protonmail dot ch>
  *
  * This software may be modified and distributed under the terms
  * of the ISC license.  See the LICENSE file for details.
@@ -15,7 +15,7 @@
 #include <time.h>
 #include <X11/Xatom.h>
 
-#include "animations.h"
+#include "hacks_collection.h"
 #include "xbp_time.h"
 #include "xbp.h"
 

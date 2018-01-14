@@ -1,7 +1,7 @@
 
-/* animations.c
+/* hacks_collection.c
  *
- * Copyright (c) 2016, mar77i <mar77i at protonmail dot ch>
+ * Copyright (c) 2016, 2018, mar77i <mar77i at protonmail dot ch>
  *
  * This software may be modified and distributed under the terms
  * of the ISC license.  See the LICENSE file for details.
@@ -12,7 +12,7 @@
 #include <string.h>
 #include <X11/Xutil.h>
 
-#include "animations.h"
+#include "hacks_collection.h"
 
 #define INTS(x, ...) (int[]){ x, __VA_ARG__ }
 #define BITS(a, b) ((a) | ((b) << 1))
