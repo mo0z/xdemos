@@ -19,28 +19,29 @@
 #include "xbp_time.h"
 #include "xbp.h"
 
-struct xrootgen {
+struct hacks {
 	struct xbp_time xt;
-	size_t animation_idx;
-	struct animation a;
+	size_t hacks_idx;
+	struct hacks_collection hc;
 };
 
-/*
-void xrootgen_invisible_cursor(struct xconn *x, Cursor *c) {
+void invisible_cursor(struct xbp *x) {
 	Pixmap p;
-	XColor d = { .pixel = XBlackPixel(x->d, x->s) };
-	p = XCreatePixmap(x->d, x->w, 1, 1, 1);
-	*c = XCreatePixmapCursor(x->d, p, p, &d, &d, 0, 0);
-	XFreePixmap(x->d, p);
+	XSetWindowAttributes xa;
+	XColor d = { .pixel = XBlackPixel(x->disp, x->scr) };
+	p = XCreatePixmap(x->disp, x->win, 1, 1, 1);
+	xa.cursor = XCreatePixmapCursor(x->disp, p, p, &d, &d, 0, 0);
+	XChangeWindowAttributes(x->disp, x->win, CWCursor, &xa);
+	XFreeCursor(x->disp, xa.cursor);
+	XFreePixmap(x->disp, p);
 }
-*/
 
 int update(struct xbp *x) {
-	struct xrootgen *xr = xbp_get_data(x);
-	xbp_time_frame_start(&xr->xt);
-	if(animations[xr->animation_idx](x, &xr->a) < 0)
+	struct hacks *h = xbp_get_data(x);
+	xbp_time_frame_start(&h->xt);
+	if(hacks_list[h->hacks_idx](x, &h->hc) < 0)
 		return -1;
-	xbp_time_frame_end(&xr->xt);
+	xbp_time_frame_end(&h->xt);
 	return 0;
 }
 
@@ -57,9 +58,9 @@ int main(int argc, char *argv[]) {
 			.update = update,
 		},
 	};
-	struct xrootgen xr = {
-		.a = {
-			.dir = ANIMATION_NODIR,
+	struct hacks h = {
+		.hc = {
+			.dir = HACKS_COLLECTION_NODIR,
 			.row_len = 0,
 			.row_current = 0,
 			.row_prev = NULL,
@@ -70,19 +71,19 @@ int main(int argc, char *argv[]) {
 
 	while(argc > 2) {
 		if(strcmp(argv[1], "--up") == 0) {
-			xr.a.dir = ANIMATION_UP;
+			h.hc.dir = HACKS_COLLECTION_UP;
 			argc--;
 			argv++;
 		} else if(strcmp(argv[1], "--down") == 0) {
-			xr.a.dir = ANIMATION_DOWN;
+			h.hc.dir = HACKS_COLLECTION_DOWN;
 			argc--;
 			argv++;
 		} else if(strcmp(argv[1], "--left") == 0) {
-			xr.a.dir = ANIMATION_LEFT;
+			h.hc.dir = HACKS_COLLECTION_LEFT;
 			argc--;
 			argv++;
 		} else if(strcmp(argv[1], "--right") == 0) {
-			xr.a.dir = ANIMATION_RIGHT;
+			h.hc.dir = HACKS_COLLECTION_RIGHT;
 			argc--;
 			argv++;
 		} else {
@@ -90,26 +91,28 @@ int main(int argc, char *argv[]) {
 			return EXIT_FAILURE;
 		}
 	}
-	if(xr.a.dir == ANIMATION_NODIR)
-		xr.a.dir = (enum animation_direction[]){
-			ANIMATION_UP, ANIMATION_DOWN, ANIMATION_LEFT, ANIMATION_RIGHT,
+	if(h.hc.dir == HACKS_COLLECTION_NODIR)
+		h.hc.dir = (enum hacks_collection_direction[]){
+			HACKS_COLLECTION_UP, HACKS_COLLECTION_DOWN,
+			HACKS_COLLECTION_LEFT, HACKS_COLLECTION_RIGHT,
 		}[random() % 4];
 	if(argc == 2) {
-		xr.animation_idx = strtol(argv[1], NULL, 0);
+		h.hacks_idx = strtol(argv[1], NULL, 0);
 		if(errno == ERANGE) {
 			fprintf(stderr, "Warning: could not parse `%s' as a number.\n",
 			  argv[1]);
 			argc = 1;
 		}
 	} else
-		xr.animation_idx = random() % NUM_ANIMATIONS;
+		h.hacks_idx = random() % NUM_ANIMATIONS;
 
-	if(xbp_time_init(&xr.xt) < 0 || xbp_init(&x, NULL) < 0)
+	if(xbp_time_init(&h.xt) < 0 || xbp_init(&x, NULL) < 0)
 		return EXIT_FAILURE;
-	xbp_set_data(&x, &xr);
-	if(xbp_main(&x) == 0 && xbp_time_print_stats(&xr.xt) == 0)
+	invisible_cursor(&x);
+	xbp_set_data(&x, &h);
+	if(xbp_main(&x) == 0 && xbp_time_print_stats(&h.xt) == 0)
 		ret = EXIT_SUCCESS;
-	animation_cleanup(&xr.a);
+	hacks_collection_cleanup(&h.hc);
 	xbp_cleanup(&x);
 	return ret;
 }

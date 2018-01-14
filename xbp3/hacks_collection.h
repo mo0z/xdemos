@@ -7,34 +7,34 @@
  * of the ISC license.  See the LICENSE file for details.
  */
 
-#ifndef ANIMATIONS_H
-#define ANIMATIONS_H
+#ifndef HACKS_COLLECTION_H
+#define HACKS_COLLECTION_H
 
 #include "xbp.h"
 
-struct animation {
-	enum animation_direction {
-		ANIMATION_NODIR,
-		ANIMATION_UP,
-		ANIMATION_DOWN,
-		ANIMATION_LEFT,
-		ANIMATION_RIGHT,
+struct hacks_collection {
+	enum hacks_collection_direction {
+		HACKS_COLLECTION_NODIR,
+		HACKS_COLLECTION_UP,
+		HACKS_COLLECTION_DOWN,
+		HACKS_COLLECTION_LEFT,
+		HACKS_COLLECTION_RIGHT,
 	} dir;
 	size_t row_len, num_rows, row_current;
 	char *row_prev;
 };
 
-int reflecting_box(struct xbp *x, struct animation *a);
-int wolfram1(struct xbp *x, struct animation *a);
-int wolfram2(struct xbp *x, struct animation *a);
-void animation_cleanup(struct animation *a);
+int reflecting_box(struct xbp *x, struct hacks_collection *hc);
+int wolfram1(struct xbp *x, struct hacks_collection *hc);
+int wolfram2(struct xbp *x, struct hacks_collection *hc);
+void hacks_collection_cleanup(struct hacks_collection *hc);
 
-static int (*animations[])(struct xbp*, struct animation*) = {
+static int (*hacks_list[])(struct xbp*, struct hacks_collection*) = {
 	reflecting_box,
 	wolfram1,
 	wolfram2,
 };
 
-#define NUM_ANIMATIONS (sizeof animations / sizeof *animations)
+#define NUM_ANIMATIONS (sizeof hacks_list / sizeof *hacks_list)
 
-#endif // ANIMATIONS_H
+#endif // HACKS_COLLECTION_h
