@@ -94,10 +94,10 @@ int action(struct xbp *x, XEvent *ev) {
 			hue = (float)i / 255.0 + rnd;
 		hue *= mult;
 		hsv_to_rgb(rgb, hue - floor(hue), 1.0, .8);
-		((unsigned char*)m->rgb_cache)[4 * i + 0] = rgb[0] * 255;
-		((unsigned char*)m->rgb_cache)[4 * i + 1] = rgb[1] * 255;
-		((unsigned char*)m->rgb_cache)[4 * i + 2] = rgb[2] * 255;
-		((unsigned char*)m->rgb_cache)[4 * i + 3] =          255;
+		((unsigned char*)(m->rgb_cache + i))[0] = rgb[0] * 255;
+		((unsigned char*)(m->rgb_cache + i))[1] = rgb[1] * 255;
+		((unsigned char*)(m->rgb_cache + i))[2] = rgb[2] * 255;
+		((unsigned char*)(m->rgb_cache + i))[3] =          255;
 	}
 	return 0;
 	(void)x;
