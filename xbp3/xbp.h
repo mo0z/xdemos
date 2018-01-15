@@ -36,23 +36,19 @@ struct xbp {
 	Window win;
 	GC gc;
 	Visual visual;
-	union {
-		struct {
-			XImage *img;
-			size_t img_allo;
-			void *data;
-		} i;
-		Pixmap pixmap;
-	} u;
+	size_t img_allo;
+	XImage *img;
 	timer_t timerid;
 	int scr, win_rect[4], old_rect[4];
 	unsigned int depth;
+	void *data;
 
 	struct xbp_config {
 		size_t max_fps;
 		long event_mask;
 		int width, height;
-		unsigned char fullscreen: 1, alpha: 1, defaultkeys: 1, image: 1;
+		unsigned char fullscreen: 1, alpha: 1, image: 1,
+		              defaultkeys: 1, time: 1;
 	} config;
 	struct xbp_callbacks {
 		int (*update)(struct xbp*);
@@ -71,40 +67,27 @@ int xbp_fullscreen_leave(struct xbp *x);
 int xbp_init(struct xbp *x, const char *display_name);
 unsigned long xbp_rgb(struct xbp *x, unsigned short red,
                       unsigned short green, unsigned short blue);
-#define xbp_rgb8(x, r, g, b) \
-	(xbp_rgb((x), ((int)(r) << 8), ((int)(g) << 8), ((int)(b) << 8)))
-
 int xbp_main(struct xbp *x);
 
-static inline void xbp_set_pixel(XImage *img, int x, int y,
-                                 unsigned long color) {
-	int i, px;
-	if(x < 0 || x > img->width || y < 0 || y > img->height)
-		return;
-	px = img->bytes_per_line * y + x * img->bits_per_pixel / CHAR_BIT;
-	switch(img->bits_per_pixel) {
-	case sizeof(uint8_t):
-		img->data[px] = color;
-		break;
-	case sizeof(uint16_t):
-		*(uint16_t*)&img->data[px] = color;
-		break;
-	case sizeof(uint32_t):
-		*(uint32_t*)&img->data[px] = color;
-		break;
-	case sizeof(uint64_t):
-		*(uint64_t*)&img->data[px] = color;
-		break;
-	default:
-		for(i = 0; i < img->bits_per_pixel / CHAR_BIT; i++)
-			img->data[px + i] = ((unsigned char*)&color)[i];
-		break;
-	}
-}
+#define xbp_rgb8(x, r, g, b) \
+	(xbp_rgb((x), ((int)(r) << 8), ((int)(g) << 8), ((int)(b) << 8)))
+#define xbp_set_data(x, d) do { (x)->data = (d); } while(0)
+#define xbp_get_data(x) ((x)->data)
+#define xbp_ximage_data(x) ((x)->img->data)
+#define xbp_ximage_allo(x) ((x)->img_allo)
+#define xbp_ximage(x) ((x)->img)
+#define xbp_ximage_bytes_per_pixel(x) (xbp_ximage(x)->bits_per_pixel / CHAR_BIT)
 
-#define xbp_set_data(x, d) do { (x)->u.i.data = (d); } while(0)
-#define xbp_get_data(x) ((x)->u.i.data)
-#define xbp_ximage(x) ((x)->u.i.img)
+static inline void xbp_set_pixel(struct xbp *x, int cx, int cy,
+                                 unsigned long color) {
+	XImage *ximage = xbp_ximage(x);
+	size_t i, bytes_per_pixel = xbp_ximage_bytes_per_pixel(x), px;
+	if(cx < 0 || cx > XBP_WIDTH(x) || cy < 0 || cy > XBP_HEIGHT(x))
+		return;
+	px = cy * ximage->bytes_per_line + cx * bytes_per_pixel;
+	for(i = 0; i < bytes_per_pixel; i++)
+		ximage->data[px + i] = color >> (8 * i);
+}
 
 void xbp_cleanup(struct xbp *x);
 

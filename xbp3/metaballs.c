@@ -123,7 +123,7 @@ int update(struct xbp *x) {
 	}
 	for(py = 0; py < XBP_HEIGHT(x); py++)
 		for(px = 0; px < XBP_WIDTH(x); px++)
-			xbp_set_pixel(xbp_ximage(x), px, py, m->rgb_cache[
+			xbp_set_pixel(x, px, py, m->rgb_cache[
 				metaballs_dist(m, px, py, XBP_WIDTH(x))
 			]);
 	xbp_time_frame_end(&m->xt);

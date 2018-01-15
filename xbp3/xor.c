@@ -20,7 +20,7 @@ int update(struct xbp *x) {
 			xor_value = (px ^ py) + (*offset & 0xff);
 			hsv_to_rgb(rgb, (float)*offset / OFFSET_MAX, 1.0,
 			           (float)xor_value / 255);
-			xbp_set_pixel(xbp_ximage(x), px, py,
+			xbp_set_pixel(x, px, py,
 				(int)(rgb[0] * 0xff) | ((int)(rgb[1] * 0xff) << 8) |
 				((int)(rgb[2] * 0xff) << 16) | (0xff << 24)
 			);

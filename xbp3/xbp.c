@@ -24,26 +24,26 @@
 static char xbp_timer = 0;
 
 static inline int xbp_initimage(struct xbp *x) {
+	size_t current_size = XBP_WIDTH(x) * XBP_HEIGHT(x);
 	if(!x->config.image)
 		return 0;
 	if(x->img_set) {
-		if((size_t)x->win_rect[2] * (size_t)x->win_rect[3] <= x->u.i.img_allo) {
-			x->u.i.img->width = x->win_rect[2];
-			x->u.i.img->height = x->win_rect[3];
+		if(current_size <= x->img_allo) {
+			x->img->width = XBP_WIDTH(x);
+			x->img->height = XBP_HEIGHT(x);
 			return 0;
 		}
-		XDestroyImage(x->u.i.img);
+		XDestroyImage(x->img);
 	}
-	x->u.i.img = XCreateImage(x->disp, &x->visual, x->depth, ZPixmap, 0, NULL,
-	                      x->win_rect[2], x->win_rect[3], 8, 0);
-	x->u.i.img->data = malloc(x->u.i.img->bits_per_pixel / CHAR_BIT *
-	                      x->u.i.img->width * x->u.i.img->height);
-	if(x->u.i.img->data == NULL) {
+	x->img = XCreateImage(x->disp, &x->visual, x->depth, ZPixmap, 0, NULL,
+	                      XBP_WIDTH(x), XBP_HEIGHT(x), 8, 0);
+	x->img->data = malloc(x->img->bits_per_pixel / CHAR_BIT * current_size);
+	if(x->img->data == NULL) {
 		perror("malloc");
-		XDestroyImage(x->u.i.img);
+		XDestroyImage(x->img);
 		return -1;
 	}
-	x->u.i.img_allo = x->u.i.img->width * x->u.i.img->height;
+	x->img_allo = current_size;
 	x->img_set = 1;
 	return 0;
 }
@@ -168,9 +168,9 @@ int xbp_init(struct xbp *x, const char *display_name) {
 	int depth = 24;
 	if(x == NULL)
 		return -1;
-	x->u.i.img = NULL;
+	x->img_allo = 0;
+	x->img = NULL;
 	x->timerid = 0;
-	x->u.i.img_allo = 0;
 	x->win_set = 0;
 	x->gc_set = 0;
 	x->cmap_set = 0;
@@ -274,7 +274,7 @@ int xbp_main(struct xbp *x) {
 		if(x->callbacks.update != NULL && x->callbacks.update(x) < 0)
 			goto error;
 		if(x->img_set)
-			XPutImage(x->disp, x->win, x->gc, x->u.i.img,
+			XPutImage(x->disp, x->win, x->gc, x->img,
 					  0, 0, 0, 0, XBP_WIDTH(x), XBP_HEIGHT(x));
 		if(xbp_handle(x) < 0)
 			goto error;
@@ -288,7 +288,7 @@ error:
 
 void xbp_cleanup(struct xbp *x) {
 	if(x->img_set)
-		XDestroyImage(x->u.i.img);
+		XDestroyImage(x->img);
 	if(x->timerid != 0)
 		timer_delete(x->timerid);
 	if(x->gc_set)
