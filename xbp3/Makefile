@@ -5,8 +5,9 @@ CFLAGS += -D_DEFAULT_SOURCE $(PROD_CFLAGS)
 LDFLAGS += $(PROD_LDFLAGS)
 LDLIBS += -lX11 -lm -lrt
 
-all: hacks metaballs xor voronoi
+all: draw hacks metaballs xor voronoi
 
+draw: draw.o xbp.o
 hacks: hacks.o hacks_collection.o xbp.o
 metaballs: metaballs.o xbp.o
 xor: xor.o xbp.o
