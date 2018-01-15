@@ -1,3 +1,6 @@
+hacks
+hacks.o
+hacks_collection.o
 third_party/betteros_dri
 third_party/betteros_dri.o
 third_party/betteros_x11
@@ -13,8 +16,6 @@ xbp1/life2d
 xbp1/life2d.o
 xbp1/time_stat.o
 xbp1/xbp.o
-xbp1/xrootgen
-xbp1/xrootgen.o
 xbp2/demo.o
 xbp2/metaballs
 xbp2/metaballs.o
