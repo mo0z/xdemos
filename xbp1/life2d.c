@@ -113,8 +113,7 @@ static int life2d_init(struct life2d *l, bool root) {
 		return -1;
 	}
 	memset(l->buf, 0, l->size * sizeof *l->buf);
-	XSetForeground(l->x.disp, l->w.gc, XBlackPixel(l->x.disp, l->x.scr));
-	XFillRectangle(l->x.disp, l->p, l->w.gc, 0, 0, WIDTH(l), HEIGHT(l));
+	XClearWindow(l->x.disp, l->w.win);
 	XSetForeground(l->x.disp, l->w.gc, XWhitePixel(l->x.disp, l->x.scr));
 	return 0;
 }

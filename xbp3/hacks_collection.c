@@ -21,12 +21,9 @@
 int reflecting_box(struct xbp *x, struct hacks_collection *hc) {
 	static const int size[2] = { 100, 100 }, speed = 10;
 	static int direction = -1, pos[2] = { 50, 50 };
-	if(direction < 0) {
-		XFillRectangle(x->disp, x->win, x->gc, 0, 0, XBP_WIDTH(x), XBP_HEIGHT(x));
+	if(direction < 0)
 		direction = (direction + 1) * -1;
-	}
-	XSetForeground(x->disp, x->gc, XBlackPixel(x->disp, x->scr));
-	XFillRectangle(x->disp, x->win, x->gc, pos[0], pos[1], size[0], size[1]);
+	XClearWindow(x->disp, x->win);
 	switch(direction) {
 	case 0:
 		pos[0] += speed;
@@ -116,9 +113,7 @@ int wolfram(struct xbp *x, struct hacks_collection *hc, int (*rule)(bool, int, c
 		if(hc->row_prev == NULL)
 			return -1;
 		rule(true, hc->row_len, hc->row_prev);
-		XSetForeground(x->disp, x->gc, XBlackPixel(x->disp, x->scr));
-		XFillRectangle(x->disp, x->win, x->gc, 0, 0,
-		               XBP_WIDTH(x), XBP_HEIGHT(x));
+		XClearWindow(x->disp, x->win);
 		XSetForeground(x->disp, x->gc, xbp_rgb8(x,
 			128 + random() % 127, 128 + random() % 127, 128 + random() % 127
 		));
