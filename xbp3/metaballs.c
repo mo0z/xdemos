@@ -73,7 +73,8 @@ static inline float rsqrt(float n) {
 int action(struct xbp *x, XEvent *ev) {
 	struct metaballs *m = xbp_get_data(x);
 	size_t i;
-	float rnd, mult, hue, rgb[3] = { 0.0, 0.0, 0.0 };
+	float rnd, mult, hue;
+	double rgb[3] = { 0.0, 0.0, 0.0 };
 	KeySym keysym = XK_space;
 	if(ev != NULL)
 		keysym = XkbKeycodeToKeysym(x->disp, ev->xkey.keycode, 0, 0);
@@ -94,10 +95,7 @@ int action(struct xbp *x, XEvent *ev) {
 			hue = (float)i / 255.0 + rnd;
 		hue *= mult;
 		hsv_to_rgb(rgb, hue - floor(hue), 1.0, .8);
-		((unsigned char*)(m->rgb_cache + i))[0] = rgb[0] * 255;
-		((unsigned char*)(m->rgb_cache + i))[1] = rgb[1] * 255;
-		((unsigned char*)(m->rgb_cache + i))[2] = rgb[2] * 255;
-		((unsigned char*)(m->rgb_cache + i))[3] =          255;
+		m->rgb_cache[i] = xbp_rgb8(x, rgb[0] * 255, rgb[1] * 255, rgb[2] * 255);
 	}
 	return 0;
 	(void)x;

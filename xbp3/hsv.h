@@ -6,9 +6,8 @@
 
 #include <math.h>
 
-static inline void hsv_to_rgb(float result[],
-                              float h, float s, float v) {
-	float i, f, p, q, t;
+static inline void hsv_to_rgb(double result[], double h, double s, double v) {
+	double i, f, p, q, t;
 	if(s == 0) {
 		result[0] = v;
 		result[1] = v;

@@ -11,7 +11,7 @@
 #define OFFSET_MAX 1023
 
 int update(struct xbp *x) {
-	float rgb[4] = { .0 };
+	double rgb[3] = { .0 };
 	int px, py;
 	OFFSET_TYPE *offset = xbp_get_data(x);
 	uint8_t xor_value;
