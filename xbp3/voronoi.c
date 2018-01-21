@@ -2,14 +2,15 @@
 // voronoi.c
 
 #include <stdlib.h>
+#include <string.h>
 #include <X11/XKBlib.h>
 
 #include "hsv.h"
 #include "point.h"
+#include "utils.h"
 #include "xbp.h"
 #include "xbp_time.h"
 
-#define NUM_POINTS 10
 #define DRAW_CIRCLE(xx, p, r) \
 	(XFillArc((xx)->disp, (xx)->win, (xx)->gc, POINT_ROUND((p).x) - (r), \
 	          POINT_ROUND((p).y) - (r), 2 * (r), 2 * (r), 0, 360 * 64))
@@ -18,126 +19,153 @@
 	           POINT_ROUND((pp).p[0].x), POINT_ROUND((pp).p[0].y), \
 	           POINT_ROUND((pp).p[1].x), POINT_ROUND((pp).p[1].y)))
 
-
 struct voronoi {
 	struct xbp_time xt;
-
-	struct point points[NUM_POINTS];
-	double directions[NUM_POINTS];
-	unsigned long colors[NUM_POINTS];
-
-	struct perpendicular {
-		struct point p[2];
-		size_t ref[2]; // offset in points
-	} *perpendiculars;
+	size_t num_points, allo_points;
+	struct voronoi_point {
+		struct point p;
+		double direction;
+		unsigned long color;
+	} *points;
+	unsigned long black;
 };
 
-int in_distance(struct point points[], size_t num, struct point p, double thr) {
+static inline int in_distance(struct voronoi_point points[], size_t num,
+                              struct point p, double thr) {
 	size_t i;
-	for(i = 1; i < num; i++)
-		if(point_abs(point_sub(p, points[i])) <= thr)
+	for(i = 0; i < num; i++)
+		if(point_abs(point_sub(p, points[i].p)) <= thr)
 			return 1;
 	return 0;
 }
 
-static inline void voronoi_init(struct xbp *x, struct voronoi *v) {
-	float rgb[4] = { .0 };
-	size_t i;
-	for(i = 0; i < NUM_POINTS; i++) {
-		do
-			v->points[i] = (struct point){
-				random() % XBP_WIDTH(x),
-				random() % XBP_HEIGHT(x),
-			};
-		while(in_distance(v->points, i, v->points[i], 3));
-		hsv_to_rgb(rgb, (float)random() / RAND_MAX, 1.0, 1.0);
-		v->colors[i] = xbp_rgb8(x, rgb[0] * 0xff, rgb[1] * 0xff, rgb[2] * 0xff);
-		v->directions[i] = random() % 360;
+static inline int voronoi_init(struct xbp *x, struct voronoi *v) {
+	double color[3] = { 0 };
+	size_t i, allo = v->allo_points + (v->allo_points == 0);
+	while(allo < v->num_points)
+		allo *= 2;
+	if(allo > v->allo_points) {
+		v->points = REALLOCATE(v->points, allo);
+		v->allo_points = allo;
 	}
+	if(v->points == NULL)
+		return -1;
+	for(i = 0; i < v->num_points; i++) {
+		do {
+			v->points[i].p = (struct point){
+				RANDINT(0, XBP_WIDTH(x)),
+				RANDINT(0, XBP_HEIGHT(x)),
+			};
+		} while(in_distance(v->points, i, v->points[i].p, 3) != 0);
+		hsv_to_rgb(color, (double)rand() / RAND_MAX, 1.0, 1.0);
+		v->points[i].color = xbp_rgb8(
+			x, color[0] * 0xff, color[1] * 0xff, color[2] * 0xff);
+		v->points[i].direction = RANDINT(0, 360);
+	}
+	v->black = BlackPixel(x->disp, x->scr);
+	return 0;
 }
 
 int action(struct xbp *x, XEvent *ev) {
-	KeySym keysym = XK_space;
-	if(ev != NULL)
-		keysym = XkbKeycodeToKeysym(x->disp, ev->xkey.keycode, 0, 0);
-	if(keysym == XK_space)
+	if(ev == NULL)
+		return 0;
+	if(XkbKeycodeToKeysym(x->disp, ev->xkey.keycode, 0, 0) == XK_space)
 		voronoi_init(x, xbp_get_data(x));
 	return 0;
 }
 
-static inline void move_points(int size[2], double *direction,
-                               struct point *p) {
-	*p = point_add(*p, polar_to_point((struct polar){1, *direction}));
-	if(p->x < 0)
-		p->x = 0;
-	if(p->x > size[0] - 1)
-		p->x = size[0] - 1;
-	if(p->y < 0)
-		p->y = 0;
-	if(p->y > size[1] - 1)
-		p->y = size[1] - 1;
-	*direction += random() % 10 - 5;
+static inline struct voronoi_point *voronoi_find(const struct voronoi *v,
+                                                 const struct point p) {
+	double dist, min_dist = DBL_MAX;
+	struct voronoi_point *vp = NULL;
+	size_t i;
+	for(i = 0; i < v->num_points; i++) {
+		dist = point_abs(point_sub(p, v->points[i].p));
+		if(dist >= min_dist)
+			continue;
+		vp = &v->points[i];
+		min_dist = dist;
+	}
+	return vp;
 }
 
-static inline void perpendiculars_create(struct point size,
-                                       struct point points[], size_t num_points,
-                                       struct perpendicular perpendiculars[]) {
-	struct point delta, center, dest;
-	size_t i, j, k;
-	for(i = 0, k = 0; i < num_points; i++)
-		for(j = i + 1; j < num_points; j++) {
-			delta = point_sub(points[j], points[i]);
-			center = point_add(points[i],
-			                   point_div(delta, (struct point){ 2, 2 }));
-			dest = polar_to_point((struct polar){
-				point_abs(size) + 4, point_angle(delta) + 90
-			});
-			perpendiculars[k++] = (struct perpendicular){
-				.p = { point_add(center, dest), point_sub(center, dest), },
-				.ref = { i, j },
-			};
-		}
+static inline int voronoi_add(struct xbp *x, struct voronoi *v,
+     const struct point p) {
+	double color[3] = { 0 };
+	if(in_distance(v->points, v->num_points, p, 3) != 0)
+		return 0;
+	if(v->num_points >= v->allo_points) {
+		v->points = REALLOCATE(v->points, v->allo_points * 2);
+		if(v->points == NULL)
+			return -1;
+		v->allo_points *= 2;
+	}
+	v->points[v->num_points].p = p;
+	hsv_to_rgb(color, (double)rand() / RAND_MAX, 1.0, 1.0);
+	v->points[v->num_points].color = xbp_rgb8(
+		x, color[0] * 0xff, color[1] * 0xff, color[2] * 0xff);
+	v->points[v->num_points].direction = RANDINT(0, 360);
+	v->num_points++;
+	return 0;
+}
+
+static inline void voronoi_remove(struct voronoi *v, struct voronoi_point *vp) {
+	size_t index;
+	if(vp == NULL || v->num_points == 1)
+		return;
+	index = vp - v->points;
+	if(index < v->num_points - 1)
+		memmove(v->points + index, v->points + index + 1,
+		        (v->num_points - index - 1) * sizeof *v->points);
+	v->num_points--;
+}
+
+int click(struct xbp *x, XEvent *ev) {
+	struct voronoi *v = xbp_get_data(x);
+	if(ev == NULL)
+		return 0;
+	if(ev->xbutton.button == 1 &&
+	  voronoi_add(x, v, (struct point){ev->xbutton.x, ev->xbutton.y}) < 0)
+		return -1;
+	else if(ev->xbutton.button == 3)
+		voronoi_remove(v, voronoi_find(v, (struct point){
+			ev->xbutton.x, ev->xbutton.y
+		}));
+	return 0;
 }
 
 int update(struct xbp *x) {
 	struct voronoi *v = xbp_get_data(x);
-	size_t i, j, k;
+	struct voronoi_point *vp;
+	size_t i, y;
 	xbp_time_frame_start(&v->xt);
-	XClearWindow(x->disp, x->win);
-	for(i = 0; i < NUM_POINTS; i++)
-		move_points((int[2]){ XBP_WIDTH(x), XBP_HEIGHT(x) }, &v->directions[i],
-		            &v->points[i]);
-	for(i = 0; i < NUM_POINTS; i++) {
-		XSetForeground(x->disp, x->gc, v->colors[i]);
-		DRAW_CIRCLE(x, v->points[i], 3);
+	for(i = 0; i < v->num_points; i++) {
+		v->points[i].p = point_limit(point_add(v->points[i].p, polar_to_point(
+			(struct polar){1, v->points[i].direction}
+		)), 0, 0, XBP_WIDTH(x) - 1, XBP_HEIGHT(x) - 1);
+		v->points[i].direction += RANDINT(-5, 5);
 	}
-	perpendiculars_create(
-		(struct point){ XBP_WIDTH(x), XBP_HEIGHT(x), },
-		v->points, NUM_POINTS, v->perpendiculars);
-	XSetForeground(x->disp, x->gc, xbp_rgb8(x, 0xff, 0, 0));
-	for(i = 0, k = 0; i < NUM_POINTS; i++) {
-		for(j = i + 1; j < NUM_POINTS; j++, k++)
-			DRAW_PERPENDICULAR(x, v->perpendiculars[k]);
-		break;
-	}
+	for(i = 0; (int)i < XBP_WIDTH(x); i++)
+		for(y = 0; (int)y < XBP_HEIGHT(x); y++) {
+			vp = voronoi_find(v, (struct point){ i, y });
+			if(vp == NULL ||
+			  point_abs(point_sub((struct point){ i, y }, vp->p)) < 2.5)
+				xbp_set_pixel(x, i, y, v->black);
+			else
+				xbp_set_pixel(x, i, y, vp->color);
+		}
 	xbp_time_frame_end(&v->xt);
 	return 0;
 }
 
-static inline size_t triangular(size_t stop) {
-	size_t i, result = 0;
-	for(i = 1; i < stop; i++)
-		result += i;
-	return result;
-}
-
-int main(void) {
+int main(int argc, char *argv[]) {
 	struct xbp x = {
 		.config = {
 			.fullscreen = 1,
 			.alpha = 0,
 			.defaultkeys = 1,
-			.image = 0,
+			.image = 1,
+			.event_mask = KeyPressMask|ButtonPressMask|ButtonReleaseMask,
 		},
 		.callbacks = {
 			.update = update,
@@ -146,31 +174,45 @@ int main(void) {
 					.event = KeyPress,
 					.callback = action,
 				},
+				&(struct xbp_listener){
+					.event = ButtonPress,
+					.callback = click,
+				},
 				NULL,
 			},
 		},
 	};
-	struct voronoi v;
+	struct voronoi v = {
+		.num_points = 15,
+		.allo_points = 0,
+		.points = NULL,
+	};
 	int ret = EXIT_FAILURE;
-	if(xbp_time_init(&v.xt) < 0)
-		return EXIT_FAILURE;
 
-	v.perpendiculars = malloc(
-		triangular(NUM_POINTS) * sizeof *v.perpendiculars);
-	if(v.perpendiculars == NULL) {
-		perror("malloc");
+	if(argc == 2) {
+		errno = 0;
+		v.num_points = estrtoul(argv[1]);
+		if(v.num_points > 256 || v.num_points == 0) {
+			fprintf(stderr, "Error: argument invalid or out of range.\n");
+			return EXIT_FAILURE;
+		}
+		argc--;
+	}
+	if(argc > 1) {
+		fprintf(stderr, "Error: invalid arguments.\n");
 		return EXIT_FAILURE;
 	}
 
-	if(xbp_init(&x, NULL) < 0)
+	if(xbp_time_init(&v.xt) < 0 || xbp_init(&x, NULL) < 0 ||
+	  voronoi_init(&x, &v) < 0)
 		goto error;
+
 	srand(time(NULL));
-	voronoi_init(&x, &v);
 	xbp_set_data(&x, &v);
 	if(xbp_main(&x) == 0 && xbp_time_print_stats(&v.xt) == 0)
 		ret = EXIT_SUCCESS;
 error:
-	free(v.perpendiculars);
+	free(v.points);
 	xbp_cleanup(&x);
 	return ret;
 }

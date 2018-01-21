@@ -114,4 +114,22 @@ static inline int point_cross(const struct point p1, const struct point p2,
 	return 0;
 }
 
+static inline struct point point_limit(const struct point p, double left,
+                                       double top, double right,
+                                       double bottom) {
+	return (struct point){
+		p.x < left ? left : (p.x > right ? right : p.x),
+		p.y < top ? top : (p.y > bottom ? bottom : p.y),
+	};
+}
+
+static inline double angle_diff(double a, const double b) {
+	a = fmod(a - b, 360.);
+	if(a < .0)
+		a += 360.;
+	if(a > 180.)
+		return 360. - a;
+	return a;
+}
+
 #endif // POINT_H
