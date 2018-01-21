@@ -37,7 +37,7 @@ static inline int xbp_initimage(struct xbp *x) {
 	}
 	x->img = XCreateImage(x->disp, &x->visual, x->depth, ZPixmap, 0, NULL,
 	                      XBP_WIDTH(x), XBP_HEIGHT(x), 8, 0);
-	x->img->data = malloc(x->img->bits_per_pixel / CHAR_BIT * current_size);
+	x->img->data = malloc(xbp_ximage_bytes_per_pixel(x) * current_size);
 	if(x->img->data == NULL) {
 		perror("malloc");
 		XDestroyImage(x->img);
@@ -48,14 +48,23 @@ static inline int xbp_initimage(struct xbp *x) {
 	return 0;
 }
 
+static inline long xbp_event_mask(struct xbp *x) {
+	long event_mask = x->config.event_mask;
+	if(x->config.defaultkeys)
+		event_mask |= KeyPressMask;
+	if(!x->fullscreen)
+		event_mask |= StructureNotifyMask;
+	return event_mask;
+}
+
 int xbp_fullscreen(struct xbp *x) {
 	XWindowAttributes attr;
 	XUnmapWindow(x->disp, x->win);
 	XChangeWindowAttributes(x->disp, x->win, CWOverrideRedirect,
 		&(XSetWindowAttributes){.override_redirect = True});
 	XMapWindow(x->disp, x->win);
-	XGrabPointer(x->disp, x->win, 0, 0, GrabModeAsync, GrabModeAsync, 0, 0,
-	             CurrentTime);
+	XGrabPointer(x->disp, x->win, 0, xbp_event_mask(x) & XBP_POINTER_EVENTS, GrabModeAsync,
+	             GrabModeAsync, 0, 0, CurrentTime);
 	XGrabKeyboard(x->disp, x->win, 0, GrabModeAsync, GrabModeAsync,
 	              CurrentTime);
 	assert(sizeof x->win_rect == 4 * sizeof x->win_rect[0]);
@@ -66,15 +75,6 @@ int xbp_fullscreen(struct xbp *x) {
 	XRaiseWindow(x->disp, x->win);
 	x->fullscreen = 1;
 	return 0;
-}
-
-static inline long xbp_event_mask(struct xbp *x) {
-	long event_mask = x->config.event_mask;
-	if(x->config.defaultkeys)
-		event_mask |= KeyPressMask;
-	if(!x->fullscreen)
-		event_mask |= StructureNotifyMask;
-	return event_mask;
 }
 
 int xbp_fullscreen_leave(struct xbp *x) {
