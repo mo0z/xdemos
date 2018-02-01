@@ -16,8 +16,8 @@
 #include <X11/XKBlib.h>
 
 #include "hsv.h"
+#define XBP_CONFIG_KEEP_TIME
 #include "xbp.h"
-#include "xbp_time.h"
 
 #define LIMIT(x, l) (((x) > (l)) ? (l) : (x))
 #define DIST_MULT(w) (w)
@@ -28,7 +28,6 @@
 #define MAX_DIST (256.0 * NUM_BALLS)
 
 struct metaballs {
-	struct xbp_time xt;
 	struct {
 		float radius;
 		int x, y;
@@ -106,7 +105,6 @@ int update(struct xbp *x) {
 	register struct metaballs *m = xbp_get_data(x);
 	register size_t i;
 	register int px, py;
-	xbp_time_frame_start(&m->xt);
 	for(i = 0; i < NUM_BALLS; i++) {
 		m->balls[i].x += m->balls[i].speed_x;
 		if(m->balls[i].x < 0 || m->balls[i].x >= XBP_WIDTH(x)) {
@@ -124,7 +122,6 @@ int update(struct xbp *x) {
 			xbp_set_pixel(x, px, py, m->rgb_cache[
 				metaballs_dist(m, px, py, XBP_WIDTH(x))
 			]);
-	xbp_time_frame_end(&m->xt);
 	return 0;
 }
 
@@ -186,8 +183,6 @@ int main(void) {
 	int speed_mod, ret = EXIT_FAILURE;
 	size_t i;
 	srand(time(NULL));
-	if(xbp_time_init(&m.xt) < 0)
-		return EXIT_FAILURE;
 	if(xbp_init(&x, NULL) < 0)
 		return EXIT_FAILURE;
 	xbp_set_data(&x, &m);
@@ -212,7 +207,7 @@ int main(void) {
 		XBP_ERRPRINT("Error: clock_gettime");
 		goto error;
 	}
-	if(xbp_main(&x) == 0 && xbp_time_print_stats(&m.xt) == 0)
+	if(xbp_main(&x) == 0)
 		ret = EXIT_SUCCESS;
 error:
 	free(m.dist_cache);

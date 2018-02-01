@@ -25,6 +25,10 @@
 	fprintf(stderr, "%s:%d: %s()\n", __FILE__, __LINE__, __func__); \
 } while(0);
 
+#if defined(XBP_CONFIG_KEEP_TIME) || defined(XBP_C)
+#include "xbp_time.h"
+#endif // defined(XBP_CONFIG_KEEP_TIME) || defined(XBP_C)
+
 #define XBP_WIDTH(x) ((x)->win_rect[2])
 #define XBP_HEIGHT(x) ((x)->win_rect[3])
 
@@ -66,14 +70,30 @@ struct xbp {
 	} callbacks;
 	unsigned char running: 1, gc_set: 1, cmap_set: 1, win_set: 1, fullscreen: 1,
 		img_set: 1;
+#if defined(XBP_CONFIG_KEEP_TIME) || defined(XBP_C)
+	struct xbp_time xt;
+#endif // defined(XBP_CONFIG_KEEP_TIME) || defined(XBP_C)
 };
 
 int xbp_fullscreen(struct xbp *x);
 int xbp_fullscreen_leave(struct xbp *x);
-int xbp_init(struct xbp *x, const char *display_name);
+int xbp_init_(struct xbp *x, const char *display_name, char keep_time);
+
+#ifndef XBP_CONFIG_KEEP_TIME
+#define xbp_init(x, d) xbp_init_(x, d, 0)
+#else // XBP_CONFIG_KEEP_TIME
+#define xbp_init(x, d) xbp_init_(x, d, 1)
+#endif // XBP_CONFIG_KEEP_TIME
+
 unsigned long xbp_rgb(struct xbp *x, unsigned short red,
                       unsigned short green, unsigned short blue);
-int xbp_main(struct xbp *x);
+int xbp_main_(struct xbp *x, char keep_time);
+
+#ifndef XBP_CONFIG_KEEP_TIME
+#define xbp_main(x) xbp_main_(x, 0)
+#else // XBP_CONFIG_KEEP_TIME
+#define xbp_main(x) xbp_main_(x, 1)
+#endif // XBP_CONFIG_KEEP_TIME
 
 #define xbp_rgb8(x, r, g, b) \
 	(xbp_rgb((x), ((int)(r) << 8), ((int)(g) << 8), ((int)(b) << 8)))

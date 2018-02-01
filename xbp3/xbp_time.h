@@ -4,9 +4,6 @@
 #ifndef XBP_TIME_H
 #define XBP_TIME_H
 
-#include <time.h>
-#include <stdio.h>
-
 #define XBP_BILLION (1000 * 1000 * 1000)
 
 struct xbp_time {
