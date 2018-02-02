@@ -16,7 +16,6 @@
 #include <X11/XKBlib.h>
 
 #include "hsv.h"
-#define XBP_CONFIG_KEEP_TIME
 #include "xbp.h"
 
 #define LIMIT(x, l) (((x) > (l)) ? (l) : (x))
@@ -166,6 +165,7 @@ int main(void) {
 			.alpha = 1,
 			.defaultkeys = 1,
 			.image = 1,
+			.time = 1,
 		},
 		.callbacks = {
 			.update = update,

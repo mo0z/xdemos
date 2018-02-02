@@ -17,7 +17,6 @@
 #include <X11/Xatom.h>
 #include <X11/XKBlib.h>
 
-#define XBP_C
 #include "xbp.h"
 
 #define FRAME_SIGNAL SIGALRM
@@ -163,7 +162,7 @@ static inline int xbp_inittimer(struct xbp *x) {
 	return 0;
 }
 
-int xbp_init_(struct xbp *x, const char *display_name, char keep_time) {
+int xbp_init(struct xbp *x, const char *display_name) {
 	Window root;
 	XVisualInfo vinfo;
 	int depth = 24;
@@ -182,7 +181,7 @@ int xbp_init_(struct xbp *x, const char *display_name, char keep_time) {
 		XBP_ERRPRINT("failed to open Display");
 		return -1;
 	}
-	if(keep_time && xbp_time_init(&x->xt) < 0)
+	if(x->config.time && xbp_time_init(&x->xt) < 0)
 		return -1;
 	x->scr = DefaultScreen(x->disp);
 	if(x->config.alpha)
@@ -264,7 +263,7 @@ static inline int xbp_handle(struct xbp *x) {
 	return 0;
 }
 
-int xbp_main_(struct xbp *x, char keep_time) {
+int xbp_main(struct xbp *x) {
 	int ret = -1;
 	xbp_timer = 0;
 	x->running = 1;
@@ -274,11 +273,11 @@ int xbp_main_(struct xbp *x, char keep_time) {
 		if(!xbp_timer)
 			continue;
 		xbp_timer = 0;
-		if(keep_time)
+		if(x->config.time)
 			xbp_time_frame_start(&x->xt);
 		if(x->callbacks.update != NULL && x->callbacks.update(x) < 0)
 			goto error;
-		if(keep_time)
+		if(x->config.time)
 			xbp_time_frame_end(&x->xt);
 		if(x->img_set)
 			XPutImage(x->disp, x->win, x->gc, x->img,
@@ -290,7 +289,7 @@ int xbp_main_(struct xbp *x, char keep_time) {
 error:
 	if(x->fullscreen)
 		xbp_fullscreen_leave(x);
-	if(keep_time && xbp_time_print_stats(&x->xt) < 0)
+	if(x->config.time && xbp_time_print_stats(&x->xt) < 0)
 		return -1;
 	return ret;
 }
