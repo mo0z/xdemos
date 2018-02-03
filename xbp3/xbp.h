@@ -93,7 +93,7 @@ static inline void xbp_set_pixel(struct xbp *x, int cx, int cy,
                                  unsigned long color) {
 	XImage *ximage = xbp_ximage(x);
 	size_t i, bytes_per_pixel = xbp_ximage_bytes_per_pixel(x), px;
-	if(cx < 0 || cx > XBP_WIDTH(x) || cy < 0 || cy > XBP_HEIGHT(x))
+	if(cx < 0 || cx >= XBP_WIDTH(x) || cy < 0 || cy >= XBP_HEIGHT(x))
 		return;
 	px = cy * ximage->bytes_per_line + cx * bytes_per_pixel;
 	for(i = 0; i < bytes_per_pixel; i++)
