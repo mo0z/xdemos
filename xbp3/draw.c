@@ -6,6 +6,7 @@
 #include <string.h>
 #include <time.h>
 
+#include "hsv.h"
 #include "xbp.h"
 
 #define SIGN(x) ((x) < 0 ? -1 : 1)
@@ -42,23 +43,16 @@ use_y:
 }
 
 int update(struct xbp *x) {
-	static struct { int x, y; } points[50] = {{ -1, -1 }};
-	Window dummy_win;
 	size_t i;
-	int dummy;
+	double rgb[3] = { 0.0, 0.0, 0.0 };
 	memset(xbp_ximage_data(x), 0,
 	       xbp_ximage_allo(x) * xbp_ximage_bytes_per_pixel(x));
-	for(i = sizeof points / sizeof *points - 1; i > 0; i--)
-		points[i] = points[i - 1];
-	if(!XQueryPointer(x->disp, x->win, &dummy_win, &dummy_win, &dummy, &dummy,
-	                  &points[0].x, &points[0].y, (unsigned*)&dummy))
-		return 0;
-	for(i = 0; i < sizeof points / sizeof *points; i++) {
-		if(points[i].x == -1 && points[i].y == -1)
-			break;
-		draw_line(x, xbp_rgb8(x, 0xff, 0xff, 0xff),
-		          XBP_WIDTH(x) / 2, XBP_HEIGHT(x) / 2,
-		          points[i].x, points[i].y);
+	for(i = 0; i < 1000; i++) {
+		hsv_to_rgb(rgb, (double)rand() / RAND_MAX, 1.0, .8);
+		draw_line(x, xbp_rgb8(x, rgb[0] * 255, rgb[1] * 255, rgb[2] * 255),
+		          rand() % XBP_WIDTH(x), rand() % XBP_HEIGHT(x),
+		          rand() % XBP_WIDTH(x), rand() % XBP_HEIGHT(x)
+		);
 	}
 	return 0;
 }
