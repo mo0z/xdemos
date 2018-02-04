@@ -29,9 +29,6 @@
 
 #include "xbp_time.h"
 
-#define XBP_WIDTH(x) ((x)->win_rect[2])
-#define XBP_HEIGHT(x) ((x)->win_rect[3])
-
 #define XBP_MAX_COLOR UINT16_MAX
 
 #define XBP_POINTER_EVENTS (\
@@ -72,6 +69,9 @@ struct xbp {
 	unsigned char running: 1, gc_set: 1, cmap_set: 1, win_set: 1,
 	              fullscreen: 1, img_set: 1;
 };
+
+#define XBP_WIDTH(x) ((x)->win_rect[2])
+#define XBP_HEIGHT(x) ((x)->win_rect[3])
 
 int xbp_fullscreen(struct xbp *x);
 int xbp_fullscreen_leave(struct xbp *x);

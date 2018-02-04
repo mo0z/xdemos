@@ -96,8 +96,6 @@ int action(struct xbp *x, XEvent *ev) {
 		m->rgb_cache[i] = xbp_rgb8(x, rgb[0] * 255, rgb[1] * 255, rgb[2] * 255);
 	}
 	return 0;
-	(void)x;
-	(void)ev;
 }
 
 int update(struct xbp *x) {
