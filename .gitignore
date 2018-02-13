@@ -1,8 +1,10 @@
 draw
 draw.o
 hacks
-hacks.o
 hacks_collection.o
+hacks.o
+langtonsant
+langtonsant.o
 third_party/betteros_dri
 third_party/betteros_dri.o
 third_party/betteros_x11
