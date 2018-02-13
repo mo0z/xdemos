@@ -1,5 +1,6 @@
 draw
 draw.o
+graphics.o
 hacks
 hacks_collection.o
 hacks.o
