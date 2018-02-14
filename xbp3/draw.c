@@ -14,9 +14,6 @@
 
 #define SIGN(x) ((x) < 0 ? -1 : 1)
 #define ABS(x) ((x) < 0 ? -(x) : (x))
-#define COORDCHECK(w, h, x, y) ( \
-	(x) >= 0 && (x) < (w) && (y) >= 0 && (y) < (h) \
-)
 
 struct draw {
 	size_t wait, step;
@@ -34,16 +31,12 @@ void draw_line(struct xbp *x, unsigned long color,
 		goto use_y;
 	for(pos = start_x; pos != end_x; pos += SIGN(delta_x)) {
 		other = start_y + delta_y * ABS(pos - start_x) / ABS(delta_x);
-		if(!COORDCHECK(XBP_WIDTH(x), XBP_HEIGHT(x), pos, other))
-			break;
 		xbp_set_pixel(x, pos, other, color);
 	}
 	return;
 use_y:
 	for(pos = start_y; pos != end_y; pos += SIGN(delta_y)) {
 		other = start_x + delta_x * ABS(pos - start_y) / ABS(delta_y);
-		if(!COORDCHECK(XBP_WIDTH(x), XBP_HEIGHT(x), other, pos))
-			break;
 		xbp_set_pixel(x, other, pos, color);
 	}
 	return;
