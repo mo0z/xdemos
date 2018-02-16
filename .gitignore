@@ -1,11 +1,6 @@
-draw
-draw.o
-graphics.o
-hacks
-hacks_collection.o
-hacks.o
-langtonsant
-langtonsant.o
+cgbp/cgbp.o
+cgbp/langtonsant
+cgbp/langtonsant.o
 third_party/betteros_dri
 third_party/betteros_dri.o
 third_party/betteros_x11
@@ -27,6 +22,11 @@ xbp2/metaballs.o
 xbp2/parallax
 xbp2/parallax.o
 xbp2/xbp.o
+xbp3/draw
+xbp3/draw.o
+xbp3/hacks
+xbp3/hacks_collection.o
+xbp3/hacks.o
 xbp3/metaballs
 xbp3/metaballs.o
 xbp3/voronoi

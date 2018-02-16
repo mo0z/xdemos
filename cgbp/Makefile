@@ -7,7 +7,7 @@ LDLIBS += -lrt
 
 all: langtonsant
 
-langtonsant: langtonsant.o graphics.o
+langtonsant: langtonsant.o cgbp.o
 	$(LINK)
 
 clean:
