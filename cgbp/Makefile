@@ -1,5 +1,5 @@
 
-# fbdev makefile
+# cgbp makefile
 
 CFLAGS += -D_DEFAULT_SOURCE $(DEV_CFLAGS)
 LDFLAGS += $(DEV_LDFLAGS)
