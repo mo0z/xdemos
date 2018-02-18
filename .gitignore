@@ -1,6 +1,8 @@
 cgbp/cgbp.o
 cgbp/langtonsant
 cgbp/langtonsant.o
+fbdev.o
+fbdev.so
 third_party/betteros_dri
 third_party/betteros_dri.o
 third_party/betteros_x11
@@ -34,3 +36,5 @@ xbp3/voronoi.o
 xbp3/xbp.o
 xbp3/xor
 xbp3/xor.o
+xlib.o
+xlib.so
