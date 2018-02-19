@@ -13,37 +13,12 @@
 #define CGBP_BACKEND_PATH_LEN (sizeof CGBP_BACKEND_PATH - 1)
 #define CGBP_FPS 30
 
-int cgbp_init(struct cgbp *c, const char *driver) {
-	size_t driver_len = strlen(driver);
-	char *buf = malloc(CGBP_BACKEND_PATH_LEN + driver_len +
-	                   sizeof CGBP_BACKEND_EXT);
-	c->driver = NULL;
-	c->dl = NULL;
+int cgbp_init(struct cgbp *c) {
 	c->driver_data = NULL;
 	c->timer_set = 0;
 	c->running = 1;
-	if(buf == NULL) {
-		perror("malloc");
-		return -1;
-	}
-	memcpy(buf, CGBP_BACKEND_PATH, CGBP_BACKEND_PATH_LEN);
-	memcpy(buf + CGBP_BACKEND_PATH_LEN, driver, driver_len);
-	memcpy(buf + CGBP_BACKEND_PATH_LEN + driver_len, CGBP_BACKEND_EXT,
-	       sizeof CGBP_BACKEND_EXT);
-	c->dl = dlopen(buf, RTLD_NOW);
-	free(buf);
-	if(c->dl == NULL) {
-		fprintf(stderr, "dlopen: %s\n", dlerror());
-		return -1;
-	}
-	c->driver = dlsym(c->dl, "driver");
-	if(c->driver == NULL) {
-		fprintf(stderr, "dlsym: %s\n", dlerror());
-		cgbp_cleanup(c);
-		return -1;
-	}
-	if(c->driver->init != NULL)
-		c->driver_data = c->driver->init();
+	if(driver.init != NULL)
+		c->driver_data = driver.init();
 	if(c->driver_data == NULL) {
 		cgbp_cleanup(c);
 		return -1;
@@ -80,8 +55,8 @@ int cgbp_main(struct cgbp *c, void *data, cgbp_updatecb *cb) {
 		if(cgbp_ticked == 0)
 			sleep(1);
 		cgbp_ticked = 0;
-		if(c->driver->update != NULL) {
-			if(c->driver->update(c, data, cb) < 0)
+		if(driver.update != NULL) {
+			if(driver.update(c, data, cb) < 0)
 				return -1;;
 		} else if(cb(c, data) < 0)
 			return -1;
@@ -97,8 +72,6 @@ int cgbp_main(struct cgbp *c, void *data, cgbp_updatecb *cb) {
 void cgbp_cleanup(struct cgbp *c) {
 	if(c->timer_set)
 		timer_delete(c->timerid);
-	if(c->driver_data != NULL && c->driver != NULL)
-		c->driver->cleanup(c->driver_data);
-	if(c->dl != NULL)
-		dlclose(c->dl);
+	if(c->driver_data != NULL)
+		driver.cleanup(c->driver_data);
 }

@@ -27,13 +27,13 @@ int langtonsant_setup(struct langtonsant *l, struct cgbp_size size) {
 }
 
 void langtonsant_step(struct cgbp *c, struct langtonsant *l) {
-	struct cgbp_size size = c->driver->size(c->driver_data);
-	if(c->driver->get_pixel(c->driver_data, l->x, l->y) == 0) {
+	struct cgbp_size size = driver.size(c->driver_data);
+	if(driver.get_pixel(c->driver_data, l->x, l->y) == 0) {
 		l->direction++;
-		c->driver->set_pixel(c->driver_data, l->x, l->y, 0xffffff);
+		driver.set_pixel(c->driver_data, l->x, l->y, 0xffffff);
 	} else {
 		l->direction--;
-		c->driver->set_pixel(c->driver_data, l->x, l->y, 0);
+		driver.set_pixel(c->driver_data, l->x, l->y, 0);
 	}
 	switch(nonneg_mod(l->direction, 4)) {
 	case 0:
@@ -78,14 +78,10 @@ int main(void) {
 	struct cgbp c;
 	struct langtonsant l;
 	int ret = EXIT_FAILURE;
-	char *driver = getenv("CGBP_DRIVER");
-	if(driver == NULL)
-		driver = "fbdev";
-
-	if(cgbp_init(&c, driver) < 0)
+	if(cgbp_init(&c) < 0)
 		goto error;
 
-	langtonsant_setup(&l, c.driver->size(c.driver_data));
+	langtonsant_setup(&l, driver.size(c.driver_data));
 	if(cgbp_main(&c, &l, langtonsant_update) == 0)
 		ret = EXIT_SUCCESS;
 error:

@@ -6,28 +6,23 @@ LDFLAGS = $(DEV_LDFLAGS)
 LDLIBS = -lrt -ldl
 
 OBJECTS = cgbp.o langtonsant.o
+DRIVERS = fbdev xlib
 
-all: langtonsant
+all: $(DRIVERS:C/\</langtonsant_/)
 
-langtonsant: $(OBJECTS)
-	$(LINK)
+.for drv in $(DRIVERS)
+langtonsant_$(drv): $(OBJECTS) $(drv).o
+	$(LINK) $(drv:C/xlib/-lX11/:C/fbdev//)
 
-fbdev.o: fbdev.c
-	$(CC) $(CFLAGS) $(SHARED_CFLAGS) -c -o $@ $<
-
-fbdev.so: fbdev.o
-	$(LINK_SHARED)
-
-xlib.o: xlib.c
-	$(CC) $(CFLAGS) $(SHARED_CFLAGS) -c -o $@ $<
-
-xlib.so: xlib.o
-	$(LINK_SHARED) -lX11
+$(drv).o: $(drv).c
+	$(CC) $(CFLAGS) $(SHARED_CFLAGS) -c $<
+.endfor
 
 $(OBJECTS): $(.TARGET:C/\.o/.c/)
 
 clean:
-	rm $(OBJECTS) langtonsant fbdev.o fbdev.so xlib.o xlib.so || true
+	rm $(OBJECTS) langtonsant_fbdev langtonsant_xlib \
+		fbdev.o fbdev.so xlib.o xlib.so || true
 
 include ../global.mk
 
