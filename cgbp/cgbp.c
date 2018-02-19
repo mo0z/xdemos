@@ -1,7 +1,6 @@
 
 // cgbp.c
 
-#include <dlfcn.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>

@@ -1,29 +1,52 @@
 
 # cgbp makefile
 
+# use bmake instead.
+
 CFLAGS = -D_DEFAULT_SOURCE $(DEV_CFLAGS)
 LDFLAGS = $(DEV_LDFLAGS)
-LDLIBS = -lrt -ldl
+LDLIBS = -lrt
+LDLIBS_xlib = -lX11
 
-OBJECTS = cgbp.o langtonsant.o
 DRIVERS = fbdev xlib
+TARGETS = langtonsant
+
+RM_FILES = cgbp.o
 
 all: $(DRIVERS:C/\</langtonsant_/)
+cgbp.o: cgbp.c
 
+
+# build drivers
 .for drv in $(DRIVERS)
-langtonsant_$(drv): $(OBJECTS) $(drv).o
-	$(LINK) $(drv:C/xlib/-lX11/:C/fbdev//)
+$(drv): $(TARGETS:C/$/_$(drv)/)
+drv_obj_$(drv) = $(drv:C/$/.o/)
 
-$(drv).o: $(drv).c
+$(drv_obj_$(drv)): $(drv:C/$/.c/) cgbp.h
 	$(CC) $(CFLAGS) $(SHARED_CFLAGS) -c $<
-.endfor
 
-$(OBJECTS): $(.TARGET:C/\.o/.c/)
+RM_FILES += $(drv_obj_$(drv))
+.endfor # drv in $(DRIVERS)
+
+# build targets
+.for target in $(TARGETS)
+
+$(target:C/$/.o/): $(target:C/$/.c/) cgbp.h
+RM_FILES += $(target:C/$/.o/)
+
+# combine targets with drivers
+.for drv in $(DRIVERS)
+target_$(drv) = $(target:C/$/_$(drv)/)
+$(target_$(drv)): cgbp.o $(target:C/$/.o/) $(drv:C/$/.o/)
+	$(LINK) $(LDLIBS_$(drv))
+RM_FILES += $(target_$(drv))
+.endfor # drv in $(DRIVERS)
+
+.endfor # target in $(TARGETS)
 
 clean:
-	rm $(OBJECTS) langtonsant_fbdev langtonsant_xlib \
-		fbdev.o fbdev.so xlib.o xlib.so || true
+	rm $(RM_FILES) || true
 
 include ../global.mk
 
-.PHONY: all clean
+.PHONY: all clean $(DRIVERS)

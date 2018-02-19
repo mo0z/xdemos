@@ -1,5 +1,6 @@
 cgbp/cgbp.o
-cgbp/langtonsant
+cgbp/langtonsant_fbdev
+cgbp/langtonsant_xlib
 cgbp/langtonsant.o
 fbdev.o
 fbdev.so
