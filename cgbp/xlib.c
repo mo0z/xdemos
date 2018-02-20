@@ -7,7 +7,6 @@
 #include <string.h>
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
-#include <X11/XKBlib.h>
 
 #include "cgbp.h"
 
@@ -21,11 +20,36 @@ struct xlib {
 	Window win;
 	GC gc;
 	XImage *img;
+	XIM xim;
+	XIC xic;
 	size_t img_allo;
 	uint8_t cmap_set: 1, win_set: 1, gc_set: 1;
 };
 
 void xlib_cleanup(void *data);
+
+static inline int setup_input(struct xlib *x) {
+	x->xim = XOpenIM(x->disp, NULL, NULL, NULL);
+	if(x->xim != NULL)
+		goto done;
+	XSetLocaleModifiers("@im=local");
+	x->xim = XOpenIM(x->disp, NULL, NULL, NULL);
+	if(x->xim != NULL)
+		goto done;
+	XSetLocaleModifiers("@im=");
+	x->xim = XOpenIM(x->disp, NULL, NULL, NULL);
+	if(x->xim == NULL) {
+		fprintf(stderr, "Error: XOpenIM: could not open input devive.\n");
+		return -1;
+	}
+done:
+	x->xic = XCreateIC(x->xim, XNInputStyle, XIMPreeditNothing
+					   | XIMStatusNothing, XNClientWindow, x->win,
+					   XNFocusWindow, x->win, NULL);
+	if(x->xic == NULL)
+		return -1;
+	return 0;
+}
 
 void *xlib_init(void) {
 	struct xlib *x = malloc(sizeof *x);
@@ -37,6 +61,9 @@ void *xlib_init(void) {
 		return NULL;
 	}
 	x->cmap_set = 0;
+	x->win_set = 0;
+	x->gc_set = 0;
+	x->xic_set = 0;
 	x->img = NULL;
 	x->disp = XOpenDisplay(NULL);
 	if(x->disp == NULL) {
@@ -93,41 +120,73 @@ void *xlib_init(void) {
 		perror("malloc");
 		goto error;
 	}
-	//memset(x->img->data, 0, bytesize);
 	for(i = 0; i < bytesize; i++)
-		x->img->data[i] = i % (x->img->depth / CHAR_BIT) == 3 ? 255 : 0;
+		x->img->data[i] = i % (x->img->depth / CHAR_BIT) > 2 ? 255 : 0;
+	if(setup_input(x) < 0)
+		goto error;
 	return x;
 error:
 	xlib_cleanup(x);
 	return NULL;
 }
 
-int xlib_update(struct cgbp *c, void *cb_data, cgbp_updatecb *cb) {
+static inline int handle_events(struct cgbp *c, XEvent *ev) {
 	struct xlib *x = c->driver_data;
-	XWindowAttributes attr;
-	XEvent ev;
 	KeySym keysym;
-	while(XPending(x->disp) > 0) {
-		XNextEvent(x->disp, &ev);
-		keysym = XkbKeycodeToKeysym(x->disp, ev.xkey.keycode, 0, 0);
+	Status st;
+	int len, i;
+	char buf[32];
+	switch(ev->type) {
+	case KeyPress:
+		len = XmbLookupString(x->xic, &ev->xkey, buf, sizeof buf, &keysym, &st);
+
+		if(st != XLookupChars && st != XLookupBoth)
+			goto keysym;
+		if(len == 1 && (buf[0] == 'q' || buf[0] == '\x1b'))
+			c->running = 0;
+		for(i = 0; i < len; i++)
+			printf("%02X%c", buf[i] & 0xff, i + 1 == len ? '\n' : ' ');
+		if(st == XLookupChars)
+			break;
+keysym:
+		if(st != XLookupKeySym && st != XLookupBoth)
+			break;
 		if(keysym == XK_q || keysym == XK_Escape)
 			c->running = 0;
-		else
-			printf("event: %d\n", ev.type);
+		break;
+	case KeyRelease:
+	case MapNotify:
+		break;
+	default:
+		printf("event: %d\n", ev->type);
+		break;
 	}
-	if(XGetWindowAttributes(x->disp, x->win, &attr) == 0) {
-		fprintf(stderr, "Error: XGetWindowAttributes failed.\n");
-		return -1;
+	return 0;
+}
+
+int xlib_update(struct cgbp *c, void *cb_data, cgbp_updatecb *cb) {
+	struct xlib *x = c->driver_data;
+	XEvent ev;
+	while(XPending(x->disp) > 0) {
+		XNextEvent(x->disp, &ev);
+		if(handle_events(c, &ev) < 0)
+			return -1;
 	}
 	if(cb != NULL && cb(c, cb_data) < 0)
 		return -1;
 	XPutImage(x->disp, x->win, x->gc, x->img,
-	          0, 0, 0, 0, attr.width, attr.height);
+	          0, 0, 0, 0, x->img->width, x->img->height);
 	return 0;
 }
 
 void xlib_cleanup(void *data) {
 	struct xlib *x = data;
+	if(x->xic != NULL)
+		XDestroyIC(x->xic);
+	if(x->xim != NULL)
+		XCloseIM(x->xim);
+	if(x->img != NULL)
+		XDestroyImage(x->img);
 	if(x->cmap_set == 1)
 		XFreeColormap(x->disp, x->cmap);
 	if(x->gc_set)

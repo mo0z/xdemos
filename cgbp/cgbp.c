@@ -56,7 +56,7 @@ int cgbp_main(struct cgbp *c, void *data, cgbp_updatecb *cb) {
 		cgbp_ticked = 0;
 		if(driver.update != NULL) {
 			if(driver.update(c, data, cb) < 0)
-				return -1;;
+				return -1;
 		} else if(cb(c, data) < 0)
 			return -1;
 	} while(c->running);

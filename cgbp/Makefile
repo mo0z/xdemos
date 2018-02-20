@@ -16,7 +16,6 @@ RM_FILES = cgbp.o
 all: $(DRIVERS:C/\</langtonsant_/)
 cgbp.o: cgbp.c
 
-
 # build drivers
 .for drv in $(DRIVERS)
 $(drv): $(TARGETS:C/$/_$(drv)/)
