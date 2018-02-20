@@ -9,7 +9,7 @@ LDLIBS = -lrt
 LDLIBS_xlib = -lX11
 
 DRIVERS = fbdev xlib
-TARGETS = langtonsant
+TARGETS = langtonsant metaballs
 BIN_TARGETS =
 
 RM_FILES = cgbp.o

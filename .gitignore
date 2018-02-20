@@ -1,7 +1,10 @@
 cgbp/cgbp.o
 cgbp/langtonsant_fbdev
-cgbp/langtonsant_xlib
 cgbp/langtonsant.o
+cgbp/langtonsant_xlib
+cgbp/metaballs_fbdev
+cgbp/metaballs.o
+cgbp/metaballs_xlib
 fbdev.o
 fbdev.so
 third_party/betteros_dri
