@@ -10,10 +10,12 @@ LDLIBS_xlib = -lX11
 
 DRIVERS = fbdev xlib
 TARGETS = langtonsant
+BIN_TARGETS =
 
 RM_FILES = cgbp.o
 
-all: $(DRIVERS:C/\</langtonsant_/)
+.MAIN: all
+
 cgbp.o: cgbp.c
 
 # build drivers
@@ -35,13 +37,16 @@ RM_FILES += $(target:C/$/.o/)
 
 # combine targets with drivers
 .for drv in $(DRIVERS)
-target_$(drv) = $(target:C/$/_$(drv)/)
-$(target_$(drv)): cgbp.o $(target:C/$/.o/) $(drv:C/$/.o/)
+bin_$(target)_$(drv) = $(target:C/$/_$(drv)/)
+$(bin_$(target)_$(drv)): cgbp.o $(target:C/$/.o/) $(drv:C/$/.o/)
 	$(LINK) $(LDLIBS_$(drv))
-RM_FILES += $(target_$(drv))
+RM_FILES += $(bin_$(target)_$(drv))
+BIN_TARGETS += $(bin_$(target)_$(drv))
 .endfor # drv in $(DRIVERS)
 
 .endfor # target in $(TARGETS)
+
+all: $(BIN_TARGETS)
 
 clean:
 	rm $(RM_FILES) || true
