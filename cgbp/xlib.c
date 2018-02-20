@@ -51,6 +51,17 @@ done:
 	return 0;
 }
 
+void invisible_cursor(struct xlib *x) {
+	Pixmap p;
+	XSetWindowAttributes xa;
+	XColor d = { .pixel = XBlackPixel(x->disp, x->scr) };
+	p = XCreatePixmap(x->disp, x->win, 1, 1, 1);
+	xa.cursor = XCreatePixmapCursor(x->disp, p, p, &d, &d, 0, 0);
+	XChangeWindowAttributes(x->disp, x->win, CWCursor, &xa);
+	XFreeCursor(x->disp, xa.cursor);
+	XFreePixmap(x->disp, p);
+}
+
 void *xlib_init(void) {
 	struct xlib *x = malloc(sizeof *x);
 	Window root;
@@ -125,6 +136,7 @@ void *xlib_init(void) {
 		x->img->data[i] = i % (x->img->depth / CHAR_BIT) > 2 ? 255 : 0;
 	if(setup_input(x) < 0)
 		goto error;
+	invisible_cursor(x);
 	return x;
 error:
 	xlib_cleanup(x);
