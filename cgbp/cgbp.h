@@ -28,8 +28,10 @@ extern struct cgbp_driver {
 } driver;
 
 struct cgbp {
+	struct timespec start_time, total_frametime;
 	void *driver_data;
 	timer_t timerid;
+	size_t num_frames;
 	uint8_t running: 1, timer_set: 1;
 };
 
