@@ -63,7 +63,8 @@ void *xlib_init(void) {
 	x->cmap_set = 0;
 	x->win_set = 0;
 	x->gc_set = 0;
-	x->xic_set = 0;
+	x->xic = NULL;
+	x->xim = NULL;
 	x->img = NULL;
 	x->disp = XOpenDisplay(NULL);
 	if(x->disp == NULL) {
@@ -130,29 +131,22 @@ error:
 	return NULL;
 }
 
-static inline int handle_events(struct cgbp *c, XEvent *ev) {
+static inline int handle_events(struct cgbp *c, void *cb_data, XEvent *ev,
+                                struct cgbp_callbacks cb) {
 	struct xlib *x = c->driver_data;
 	KeySym keysym;
 	Status st;
-	int len, i;
+	int len;
 	char buf[32];
 	switch(ev->type) {
 	case KeyPress:
+		if(cb.action == NULL)
+			break;
 		len = XmbLookupString(x->xic, &ev->xkey, buf, sizeof buf, &keysym, &st);
-
 		if(st != XLookupChars && st != XLookupBoth)
-			goto keysym;
-		if(len == 1 && (buf[0] == 'q' || buf[0] == '\x1b'))
-			c->running = 0;
-		for(i = 0; i < len; i++)
-			printf("%02X%c", buf[i] & 0xff, i + 1 == len ? '\n' : ' ');
-		if(st == XLookupChars)
 			break;
-keysym:
-		if(st != XLookupKeySym && st != XLookupBoth)
-			break;
-		if(keysym == XK_q || keysym == XK_Escape)
-			c->running = 0;
+		if(len == 1 && cb.action(c, cb_data, *buf) < 0)
+			return -1;
 		break;
 	case KeyRelease:
 	case MapNotify:
@@ -164,15 +158,15 @@ keysym:
 	return 0;
 }
 
-int xlib_update(struct cgbp *c, void *cb_data, cgbp_updatecb *cb) {
+int xlib_update(struct cgbp *c, void *cb_data, struct cgbp_callbacks cb) {
 	struct xlib *x = c->driver_data;
 	XEvent ev;
 	while(XPending(x->disp) > 0) {
 		XNextEvent(x->disp, &ev);
-		if(handle_events(c, &ev) < 0)
+		if(handle_events(c, cb_data, &ev, cb) < 0)
 			return -1;
 	}
-	if(cb != NULL && cb(c, cb_data) < 0)
+	if(cb.update != NULL && cb.update(c, cb_data) < 0)
 		return -1;
 	XPutImage(x->disp, x->win, x->gc, x->img,
 	          0, 0, 0, 0, x->img->width, x->img->height);

@@ -98,9 +98,15 @@ error:
 
 struct cgbp_driver driver;
 
-int fbdev_update(struct cgbp *c, void *cb_data, cgbp_updatecb *cb) {
+int (*update)(struct cgbp*, void*, struct cgbp_callbacks);
+int fbdev_update(struct cgbp *c, void *cb_data, struct cgbp_callbacks cb) {
 	struct fbdev *f = c->driver_data;
-	if(cb != NULL && cb(c, cb_data) < 0)
+	char r;
+	if(cb.action != NULL) {
+		if(read(STDIN_FILENO, &r, 1) > 0 && cb.action(c, cb_data, r) < 0)
+			return -1;
+	}
+	if(cb.update != NULL && cb.update(c, cb_data) < 0)
 		return -1;
 	memcpy(f->fbmm, f->data, f->vinfo.yres * f->finfo.line_length);
 	return 0;

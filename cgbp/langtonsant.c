@@ -61,28 +61,35 @@ void langtonsant_step(struct cgbp *c, struct langtonsant *l) {
 			l->x--;
 		break;
 	}
-	return;
+}
+
+int langtonsant_action(struct cgbp *c, void *data, char r) {
+	if(r == 'q' || r == 'Q')
+		c->running = 0;
+	return 0;
+	(void)data;
 }
 
 int langtonsant_update(struct cgbp *c, void *data) {
 	size_t i;
-	char x;
 	for(i = 0; i < 100000; i++)
 		langtonsant_step(c, data);
-	if(read(STDIN_FILENO, &x, 1) > 0 && (x == 'q' || x == 'Q'))
-		c->running = 0;
 	return 0;
 }
 
 int main(void) {
 	struct cgbp c;
 	struct langtonsant l;
+	struct cgbp_callbacks cb = {
+		.update = langtonsant_update,
+		.action = langtonsant_action,
+	};
 	int ret = EXIT_FAILURE;
 	if(cgbp_init(&c) < 0)
 		goto error;
 
 	langtonsant_setup(&l, driver.size(c.driver_data));
-	if(cgbp_main(&c, &l, langtonsant_update) == 0)
+	if(cgbp_main(&c, &l, cb) == 0)
 		ret = EXIT_SUCCESS;
 error:
 	cgbp_cleanup(&c);

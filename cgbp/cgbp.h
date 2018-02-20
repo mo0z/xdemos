@@ -9,15 +9,18 @@
 
 struct cgbp;
 
-typedef int cgbp_updatecb(struct cgbp*, void*);
-
 struct cgbp_size {
 	size_t w, h;
 };
 
+struct cgbp_callbacks {
+	int (*update)(struct cgbp*, void*);
+	int (*action)(struct cgbp*, void*, char);
+};
+
 extern struct cgbp_driver {
 	void *(*init)(void);
-	int (*update)(struct cgbp*, void*, cgbp_updatecb*);
+	int (*update)(struct cgbp*, void*, struct cgbp_callbacks);
 	void (*cleanup)(void*);
 	uint32_t (*get_pixel)(void*, size_t, size_t);
 	void (*set_pixel)(void*, size_t, size_t, uint32_t);
@@ -31,7 +34,7 @@ struct cgbp {
 };
 
 int cgbp_init(struct cgbp *c);
-int cgbp_main(struct cgbp *c, void *data, cgbp_updatecb *update);
+int cgbp_main(struct cgbp *c, void *data, struct cgbp_callbacks cb);
 void cgbp_cleanup(struct cgbp *c);
 
 #endif // CGBP_H

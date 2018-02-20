@@ -38,7 +38,7 @@ void cgbp_alarm(int sig) {
 		cgbp_ticked = 1;
 }
 
-int cgbp_main(struct cgbp *c, void *data, cgbp_updatecb *cb) {
+int cgbp_main(struct cgbp *c, void *data, struct cgbp_callbacks cb) {
 	struct sigaction sa = {
 		.sa_flags = 0,
 		.sa_handler = cgbp_alarm,
@@ -57,7 +57,7 @@ int cgbp_main(struct cgbp *c, void *data, cgbp_updatecb *cb) {
 		if(driver.update != NULL) {
 			if(driver.update(c, data, cb) < 0)
 				return -1;
-		} else if(cb(c, data) < 0)
+		} else if(cb.update(c, data) < 0)
 			return -1;
 	} while(c->running);
 
